@@ -33,6 +33,7 @@ in-place upgrade, the hybrid signature check, key backup and recovery, and brows
 | `HybridPoseidonAccount`, `HybridShakeAccount` | Full hybrid accounts, also used as verifier classes: a transaction passes only if BOTH a STARK-curve ECDSA signature and a Falcon-512 signature verify over the same hash. |
 | Key backup profile | One BIP39 mnemonic restores both keys. See [`contracts/docs/key-backup-v0.md`](contracts/docs/key-backup-v0.md). |
 | Browser signer | Falcon-512 signing in the browser with [@noble/post-quantum](https://github.com/paulmillr/noble-post-quantum) (pure JS), converted by `signer/falcon_adapter.mjs` into the layout of the standard SHAKE-256 on-chain verifier. Demo page: [`docs/index.html`](docs/index.html). |
+| Passkey lock | After one restore from the words, the page can lock the 64-byte seed with a passkey: AES-GCM under a key derived (HKDF-SHA256) from the passkey's WebAuthn PRF output, stored in that browser only. Later visits unlock with Face ID, fingerprint, Windows Hello or a security key; the words stay the backup. |
 | Demo scripts | Sepolia scripts for deployment, migration, negative tests, backup/recovery and the browser path (`signer/`). |
 
 ## How migration works
@@ -97,6 +98,10 @@ Reproduce with `node signer/mainnet_cost.mjs`.
   full hybrid class, because verification is shared through a library call.
 - Signatures from `@noble/post-quantum` were cross-checked against an independent Python
   computation and pass the Cairo SHAKE-256 verifier (`contracts/src/tests_browser.cairo`).
+- Passkey lock, tested end to end in headless Edge with a CDP virtual authenticator (CTAP2,
+  user verification, PRF): restore from words, lock, reload, unlock with the passkey, send
+  ([0x70e467c5…](https://sepolia.voyager.online/tx/0x70e467c5c159390aea87a496b27f4bc69cb5b6462c6918d7050900eca7c8a67)).
+  Reproduce with `node signer/passkey_e2e.mjs`.
 - STRK20 privacy pool compatibility is analysed in
   [`contracts/docs/strk20-compatibility.md`](contracts/docs/strk20-compatibility.md); an end-to-end
   run still needs a Sepolia proving service.
@@ -120,7 +125,11 @@ Account: [`0x343e3df5…c0db`](https://sepolia.voyager.online/contract/0x343e3df
   SHAKE-256 variant follows the standard and costs about 3.4x the gas.
 - After migration, OpenZeppelin extras such as SRC-9 outside execution (paymasters, session keys)
   are not available yet.
-- Browser signing works; passkey-protected key storage and hardware wallets are open.
+- The passkey lock needs the WebAuthn PRF extension. Support differs by device, browser and
+  password manager; it was tested with a Chromium virtual authenticator, not yet across real
+  devices. Hardware wallet signing is open.
+- The passkey protects the stored seed on one device; it does not replace the on-chain ECDSA key.
+  Using the passkey itself as the classical signer (secp256r1) is a possible next step.
 - Key backup reproducibility is tied to the pinned Falcon library (see the backup doc).
 
 ## Quickstart
@@ -145,6 +154,7 @@ node backup_demo.mjs    # mnemonic backup and recovery
 node browser_signer_check.mjs   # offline: noble signature vs Python vs Cairo fixture
 node browser_setup.mjs  # SHAKE verifier + account for the browser demo (docs/index.html)
 node mainnet_cost.mjs   # fee per transfer at current mainnet prices
+node passkey_e2e.mjs    # demo page + virtual passkey: lock, reload, unlock, send (Chromium)
 ```
 
 ## Credits

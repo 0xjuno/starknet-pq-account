@@ -49,6 +49,17 @@
   </section>
 
   <section>
+    <strong>Passkey (optional)</strong>
+    <p class="soft">After restoring the keys once, lock them on this device with a passkey (Face ID, fingerprint, Windows Hello or a security key). Next time, unlock with the passkey instead of the 24 words. The seed is encrypted with a secret only that passkey can produce (WebAuthn PRF extension) and stored in this browser only. The 24 words remain the backup.</p>
+    <div class="row">
+      <button id="pk-save" class="ghost" disabled>Lock these keys with a passkey</button>
+      <button id="pk-unlock" class="ghost" disabled>Unlock with passkey</button>
+      <button id="pk-forget" class="ghost" hidden>Forget on this device</button>
+    </div>
+    <div id="pk-log" class="log">No passkey-locked keys on this device.</div>
+  </section>
+
+  <section>
     <strong>2. Send 0.01 STRK</strong>
     <p class="soft">The transaction hash is signed twice here: ECDSA (2 felts) and Falcon-512 with the standard SHAKE-256 hash-to-point (60 felts). The account accepts it only if both verify.</p>
     <div class="row">
@@ -70,7 +81,7 @@ import { wordlist } from "https://cdn.jsdelivr.net/npm/@scure/bip39@1.6.0/wordli
 import { HDKey } from "https://cdn.jsdelivr.net/npm/@scure/bip32@1.7.0/+esm";
 import { getStarkKey, grindKey } from "https://cdn.jsdelivr.net/npm/@scure/starknet@1.1.0/+esm";
 import { hkdf } from "https://cdn.jsdelivr.net/npm/@noble/hashes@1.6.1/hkdf.js/+esm";
-import { sha512 } from "https://cdn.jsdelivr.net/npm/@noble/hashes@1.6.1/sha2.js/+esm";
+import { sha256, sha512 } from "https://cdn.jsdelivr.net/npm/@noble/hashes@1.6.1/sha2.js/+esm";
 
 const CONFIG = __CONFIG__;
 const PUBLIC_DEMO_MNEMONIC = "clip west volume icon sibling act dirt easily magnet fuel rigid robust lunar pause deer crisp reunion slogan wrist choice wisdom scene blossom salt";
@@ -80,12 +91,14 @@ const OZ_CLASS = "0x05b4b537eaa2399e3aa99c4e2e0208ebd6c71bc1467938cd52c798c601e4
 const $ = (id) => document.getElementById(id);
 const log = (msg, cls) => { const el = $("log"); el.textContent = msg; el.className = "log " + (cls || ""); };
 const provider = new RpcProvider({ nodeUrl: CONFIG.rpc });
-let keys = null, address = null;
+let keys = null, address = null, seed = null;
 
 // --- key backup profile v0.1 (same as signer/pq_keys.mjs) ---
-function deriveAccountKeys(mnemonic) {
+function seedFromMnemonic(mnemonic) {
   if (!validateMnemonic(mnemonic, wordlist)) throw new Error("Invalid mnemonic.");
-  const seed = mnemonicToSeedSync(mnemonic);
+  return mnemonicToSeedSync(mnemonic);
+}
+function deriveKeysFromSeed(seed) {
   const node = HDKey.fromMasterSeed(seed).derive("m/44'/9004'/0'/0/0");
   const g = grindKey(node.privateKey);
   const ecdsaPrivateKey = g.startsWith("0x") ? g : "0x" + g;
@@ -154,23 +167,103 @@ async function bounds() {
 }
 const transfer = () => ({ contractAddress: CONFIG.strk, entrypoint: "transfer", calldata: CallData.compile({ recipient: CONFIG.recipient, amount: cairo.uint256(10n ** 16n) }) });
 
+// Derives both keys from a seed, then checks the Falcon key registered on-chain.
+async function activate(newSeed, source) {
+  seed = newSeed;
+  keys = deriveKeysFromSeed(seed);
+  address = hash.calculateContractAddressFromHash(keys.ecdsaPublicKey, OZ_CLASS, [keys.ecdsaPublicKey], 0);
+  const mine = pack512(ntt(decodePublicKey(keys.falconPublicKey))).map((x) => num.toHex(x));
+  $("acct").innerHTML = `<a href="${CONFIG.voyager}/contract/${address}" target="_blank" rel="noopener">${address}</a>`;
+  $("ecpk").textContent = keys.ecdsaPublicKey; $("fpk").textContent = mine[0]; $("keys").hidden = false;
+  const onchain = await provider.callContract({ contractAddress: address, entrypoint: "get_falcon_public_key", calldata: [] }, "latest");
+  const match = JSON.stringify(onchain.slice(1).map((x) => num.toHex(x))) === JSON.stringify(mine);
+  $("check").innerHTML = match ? `<span class="ok">Falcon key on-chain matches the key restored from ${source}</span>` : '<span class="bad">On-chain key does not match</span>';
+  $("send").disabled = !match; $("attack").disabled = !match; $("pk-save").disabled = !match;
+  log(match ? "Ready." : "These keys do not control a migrated account.", match ? "ok" : "bad");
+}
+
 $("demo").addEventListener("click", () => { $("mnemonic").value = PUBLIC_DEMO_MNEMONIC; $("derive").click(); });
 $("derive").addEventListener("click", async () => {
   try {
     $("derive").disabled = true; log("Deriving keys...");
-    keys = deriveAccountKeys($("mnemonic").value.trim().toLowerCase().split(/\s+/).join(" "));
+    const s = seedFromMnemonic($("mnemonic").value.trim().toLowerCase().split(/\s+/).join(" "));
     $("mnemonic").value = "";
-    address = hash.calculateContractAddressFromHash(keys.ecdsaPublicKey, OZ_CLASS, [keys.ecdsaPublicKey], 0);
-    const mine = pack512(ntt(decodePublicKey(keys.falconPublicKey))).map((x) => num.toHex(x));
-    $("acct").innerHTML = `<a href="${CONFIG.voyager}/contract/${address}" target="_blank" rel="noopener">${address}</a>`;
-    $("ecpk").textContent = keys.ecdsaPublicKey; $("fpk").textContent = mine[0]; $("keys").hidden = false;
-    const onchain = await provider.callContract({ contractAddress: address, entrypoint: "get_falcon_public_key", calldata: [] }, "latest");
-    const match = JSON.stringify(onchain.slice(1).map((x) => num.toHex(x))) === JSON.stringify(mine);
-    $("check").innerHTML = match ? '<span class="ok">Falcon key on-chain matches the restored key</span>' : '<span class="bad">On-chain key does not match</span>';
-    $("send").disabled = !match; $("attack").disabled = !match;
-    log(match ? "Ready." : "This mnemonic does not control a migrated account.", match ? "ok" : "bad");
+    await activate(s, "the 24 words");
   } catch (e) { log(String(e.message || e), "bad"); } finally { $("derive").disabled = false; }
 });
+
+// --- passkey lock: WebAuthn PRF -> HKDF -> AES-GCM over the 64-byte BIP39 seed ---
+const STORE = "pq-account-passkey-v0";
+const PRF_SALT = sha256(new TextEncoder().encode("starknet-pq-account/passkey-prf/v0"));
+const pkLog = (msg, cls) => { const el = $("pk-log"); el.textContent = msg; el.className = "log " + (cls || ""); };
+const b64 = (u8) => btoa(String.fromCharCode(...u8));
+const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const rand = (n) => crypto.getRandomValues(new Uint8Array(n));
+function readStore() { try { const v = localStorage.getItem(STORE); return v ? JSON.parse(v) : null; } catch { return null; } }
+function writeStore(v) { try { if (v) localStorage.setItem(STORE, JSON.stringify(v)); else localStorage.removeItem(STORE); return true; } catch { return false; } }
+function refreshPasskeyUi() {
+  const s = readStore();
+  $("pk-unlock").disabled = !s; $("pk-forget").hidden = !s;
+  if (s) pkLog(`Passkey-locked keys stored on this device for ${s.address.slice(0, 10)}...${s.address.slice(-6)}.`);
+}
+function passkeyAvailable() {
+  if (!window.isSecureContext || !window.PublicKeyCredential) throw new Error("Passkeys need an https page (use the GitHub Pages link) and a browser with WebAuthn.");
+}
+async function prfFromAssertion(credId) {
+  const cred = await navigator.credentials.get({ publicKey: {
+    challenge: rand(32), userVerification: "required",
+    allowCredentials: credId ? [{ type: "public-key", id: credId }] : [],
+    extensions: { prf: { eval: { first: PRF_SALT } } },
+  } });
+  const out = cred.getClientExtensionResults().prf?.results?.first;
+  if (!out) throw new Error("This passkey or browser does not support the PRF extension, so it cannot unlock keys. Use the 24 words.");
+  return { secret: new Uint8Array(out), credId: new Uint8Array(cred.rawId) };
+}
+async function aesKey(secret, salt) {
+  const base = await crypto.subtle.importKey("raw", secret, "HKDF", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "HKDF", hash: "SHA-256", salt, info: new TextEncoder().encode("starknet-pq-account/seed-encryption/v0") },
+    base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+$("pk-save").addEventListener("click", async () => {
+  $("pk-save").disabled = true;
+  try {
+    passkeyAvailable();
+    pkLog("Creating a passkey... follow your device prompt.");
+    const cred = await navigator.credentials.create({ publicKey: {
+      challenge: rand(32), rp: { name: "PQ account signer" },
+      user: { id: rand(16), name: `pq-account-${address.slice(2, 10)}`, displayName: `PQ account ${address.slice(0, 10)}` },
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+      authenticatorSelection: { residentKey: "required", userVerification: "required" },
+      extensions: { prf: { eval: { first: PRF_SALT } } },
+    } });
+    const ext = cred.getClientExtensionResults().prf;
+    if (ext && ext.enabled === false) throw new Error("This passkey does not support the PRF extension. Keys were not stored; keep using the 24 words.");
+    let secret = ext?.results?.first ? new Uint8Array(ext.results.first) : null;
+    const credId = new Uint8Array(cred.rawId);
+    if (!secret) { pkLog("Passkey created. Confirm once more to derive the encryption key..."); secret = (await prfFromAssertion(credId)).secret; }
+    const salt = rand(16), iv = rand(12);
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await aesKey(secret, salt), seed));
+    if (!writeStore({ credId: b64(credId), salt: b64(salt), iv: b64(iv), ct: b64(ct), address })) throw new Error("This browser blocked local storage.");
+    refreshPasskeyUi();
+    pkLog("Locked. Reload the page and press \"Unlock with passkey\"; the 24 words are not needed on this device.", "ok");
+  } catch (e) { pkLog(e.name === "NotAllowedError" ? "Cancelled." : String(e.message || e), "bad"); } finally { $("pk-save").disabled = !keys; }
+});
+$("pk-unlock").addEventListener("click", async () => {
+  $("pk-unlock").disabled = true;
+  try {
+    passkeyAvailable();
+    const s = readStore();
+    pkLog("Waiting for the passkey...");
+    const { secret } = await prfFromAssertion(unb64(s.credId));
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(s.iv) }, await aesKey(secret, unb64(s.salt)), unb64(s.ct));
+    log("Deriving keys...");
+    await activate(new Uint8Array(plain), "the passkey");
+    pkLog("Unlocked with the passkey.", "ok");
+  } catch (e) { pkLog(e.name === "NotAllowedError" ? "Cancelled." : e.name === "OperationError" ? "This passkey cannot decrypt the stored keys." : String(e.message || e), "bad"); }
+  finally { $("pk-unlock").disabled = !readStore(); }
+});
+$("pk-forget").addEventListener("click", () => { writeStore(null); refreshPasskeyUi(); pkLog("Forgotten on this device. The passkey itself can be removed in your device settings."); });
+refreshPasskeyUi();
 
 async function send(withFalcon) {
   const acc = new Account({ provider, address, signer: new HybridSigner(keys.ecdsaPrivateKey, withFalcon) });
