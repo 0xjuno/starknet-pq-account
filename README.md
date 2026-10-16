@@ -9,6 +9,8 @@ funds, back up both keys with one mnemonic, and sign from the browser.
 and press "Use the public demo account". The page restores both keys inside the tab and sends a
 hybrid-signed Sepolia transfer.
 
+![Demo: restore both keys from 24 words, send a hybrid-signed transfer, ECDSA-only rejected, passkey lock and unlock](docs/media/demo.gif)
+
 ## Why
 
 StarkWare's own assessment of Starknet accounts:
