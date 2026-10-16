@@ -1,0 +1,14 @@
+# Keys and mnemonics never leave the machine (testnet only, but still).
+.keys/
+*.key.json
+*mnemonic*
+*.pickle
+
+# Build and dependency output
+contracts/target/
+vendor/**/target/
+node_modules/
+.venv*/
+__pycache__/
+*.pyc
+.snfoundry_cache/

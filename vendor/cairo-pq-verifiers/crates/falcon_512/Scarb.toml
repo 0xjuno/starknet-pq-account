@@ -1,0 +1,20 @@
+[package]
+name = "pqbench_falcon_512"
+version.workspace = true
+edition.workspace = true
+cairo-version.workspace = true
+scarb-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+starknet.workspace = true
+corelib_imports = "0.1.2"
+pqbench_interface.workspace = true
+pqbench_ntt = { path = "../ntt" }
+
+[dev-dependencies]
+snforge_std.workspace = true
+assert_macros.workspace = true
+
+[tool]
+scarb.workspace = true

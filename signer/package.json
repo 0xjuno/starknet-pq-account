@@ -1,0 +1,21 @@
+{
+  "name": "starknet-pq-account-signer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Testnet demo scripts: hybrid ECDSA + Falcon-512 accounts, in-place migration, mnemonic backup",
+  "scripts": {
+    "setup": "node setup_keys.mjs",
+    "demo": "node demo.mjs",
+    "negative": "node negative_test.mjs",
+    "migrate": "node migrate_demo.mjs",
+    "backup": "node backup_demo.mjs"
+  },
+  "dependencies": {
+    "@noble/hashes": "1.6.1",
+    "@scure/bip32": "1.7.0",
+    "@scure/bip39": "1.6.0",
+    "@scure/starknet": "1.1.0",
+    "starknet": "10.8.0"
+  }
+}

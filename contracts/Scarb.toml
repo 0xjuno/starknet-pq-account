@@ -1,0 +1,24 @@
+[package]
+name = "pq_hybrid"
+version = "0.1.0"
+edition = "2024_07"
+cairo-version = "2.18.0"
+license = "MIT"
+description = "Hybrid ECDSA-STARK + Falcon-512 Starknet account (experimental, unaudited, testnet only)"
+
+[dependencies]
+starknet = "2.18.0"
+pqbench_interface = { path = "../vendor/cairo-pq-verifiers/crates/bench_interface" }
+pqbench_ecdsa_stark = { path = "../vendor/cairo-pq-verifiers/crates/ecdsa_stark" }
+pqbench_falcon_512 = { path = "../vendor/cairo-pq-verifiers/crates/falcon_512" }
+
+[dev-dependencies]
+cairo_test = "2.18.0"
+
+[[target.starknet-contract]]
+allowed-libfuncs-list.name = "experimental"
+sierra = true
+casm = true
+
+[cairo]
+enable-gas = true
