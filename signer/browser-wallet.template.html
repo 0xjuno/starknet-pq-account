@@ -38,7 +38,8 @@
   <section>
     <strong>1. Restore keys from the mnemonic</strong>
     <textarea id="mnemonic" rows="3" placeholder="24 testnet words" autocomplete="off" spellcheck="false"></textarea>
-    <button id="derive">Derive keys and check the account</button>
+    <div class="row"><button id="derive">Derive keys and check the account</button><button id="demo" class="ghost">Use the public demo account</button></div>
+    <p class="soft">The public demo account's 24 words are published on purpose (Sepolia only, refilled from time to time). Never type a real wallet's words into any web page.</p>
     <dl id="keys" hidden>
       <dt>Account</dt><dd id="acct"></dd>
       <dt>ECDSA public key</dt><dd id="ecpk"></dd>
@@ -72,6 +73,7 @@ import { hkdf } from "https://cdn.jsdelivr.net/npm/@noble/hashes@1.6.1/hkdf.js/+
 import { sha512 } from "https://cdn.jsdelivr.net/npm/@noble/hashes@1.6.1/sha2.js/+esm";
 
 const CONFIG = __CONFIG__;
+const PUBLIC_DEMO_MNEMONIC = "clip west volume icon sibling act dirt easily magnet fuel rigid robust lunar pause deer crisp reunion slogan wrist choice wisdom scene blossom salt";
 const ROOTS = __ROOTS__;
 const Q = 12289, N = 512, SQR1 = 1479;
 const OZ_CLASS = "0x05b4b537eaa2399e3aa99c4e2e0208ebd6c71bc1467938cd52c798c601e43564";
@@ -152,6 +154,7 @@ async function bounds() {
 }
 const transfer = () => ({ contractAddress: CONFIG.strk, entrypoint: "transfer", calldata: CallData.compile({ recipient: CONFIG.recipient, amount: cairo.uint256(10n ** 16n) }) });
 
+$("demo").addEventListener("click", () => { $("mnemonic").value = PUBLIC_DEMO_MNEMONIC; $("derive").click(); });
 $("derive").addEventListener("click", async () => {
   try {
     $("derive").disabled = true; log("Deriving keys...");

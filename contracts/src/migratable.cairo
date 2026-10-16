@@ -32,6 +32,7 @@ pub trait IMigratable<TState> {
         ref self: TState, falcon_public_key: Array<felt252>, verifier_class_hash: ClassHash,
     );
     fn rotate_falcon_public_key(ref self: TState, falcon_public_key: Array<felt252>);
+    fn rotate_ecdsa_public_key(ref self: TState, ecdsa_public_key: felt252);
     fn set_verifier_class_hash(ref self: TState, verifier_class_hash: ClassHash);
     fn upgrade(ref self: TState, new_class_hash: ClassHash);
     fn get_ecdsa_public_key(self: @TState) -> felt252;
@@ -77,6 +78,7 @@ pub mod HybridMigratableAccount {
     enum Event {
         FalconKeyRegistered: FalconKeyRegistered,
         FalconKeyRotated: FalconKeyRotated,
+        EcdsaKeyRotated: EcdsaKeyRotated,
         VerifierChanged: VerifierChanged,
     }
 
@@ -87,6 +89,11 @@ pub mod HybridMigratableAccount {
 
     #[derive(Drop, starknet::Event)]
     struct FalconKeyRotated {}
+
+    #[derive(Drop, starknet::Event)]
+    struct EcdsaKeyRotated {
+        ecdsa_public_key: felt252,
+    }
 
     #[derive(Drop, starknet::Event)]
     struct VerifierChanged {
@@ -181,6 +188,17 @@ pub mod HybridMigratableAccount {
                 i += 1;
             }
             self.emit(FalconKeyRotated {});
+        }
+
+        /// Replaces the classical STARK-curve key. Requires a hybrid-signed transaction
+        /// (self-call), so a forged ECDSA signature alone cannot rotate it.
+        fn rotate_ecdsa_public_key(ref self: ContractState, ecdsa_public_key: felt252) {
+            self._assert_only_self();
+            assert(self._falcon_registered(), NOT_REGISTERED);
+            assert(ecdsa_public_key != 0, NO_ECDSA_KEY);
+            self.Account_public_key.write(ecdsa_public_key);
+            self.ecdsa_public_key.write(ecdsa_public_key);
+            self.emit(EcdsaKeyRotated { ecdsa_public_key });
         }
 
         /// Points verification at another declared verifier class (e.g. an audited one).
