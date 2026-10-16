@@ -14,3 +14,7 @@ export const SIGNER_DIR = resolve(REPO, "vendor/cairo-pq-verifiers/pq-accounts/s
 export const FALCON_SIGNER = resolve(SIGNER_DIR, "falcon_signer.py");
 export const FALCON_FROM_SEED = resolve(REPO, "scripts/falcon_from_seed.py");
 export const TARGET = resolve(REPO, "contracts/target/dev");
+export const SCRIPTS = resolve(REPO, "scripts");
+export const ROOTS = resolve(REPO, "signer/falcon_ntt_roots.json");
+export const BROWSER_FIXTURE = resolve(REPO, "contracts/src/tests_browser.cairo");
+export const PAGE_CONFIG = resolve(REPO, "signer/browser-wallet.config.json");

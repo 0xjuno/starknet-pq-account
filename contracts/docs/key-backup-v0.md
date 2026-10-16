@@ -25,6 +25,20 @@ One BIP39 mnemonic (24 words recommended) restores both keys.
 4. The account stores both public keys on-chain, so a restore can be checked against the
    chain before the user signs anything.
 
+## Profile v0.1: Falcon keygen in JavaScript (browser and Node)
+
+Same mnemonic and ECDSA path as above. The Falcon key uses the deterministic key generation of
+[@noble/post-quantum](https://github.com/paulmillr/noble-post-quantum) 0.6.1, which accepts a
+48-byte seed:
+
+- `falcon_seed48 = HKDF-SHA512(ikm = seed, salt = "starknet-pq-backup-v0.1", info = "falcon-512/noble/account/i", L = 48)`
+- `falcon512.keygen(falcon_seed48)`
+
+The same mnemonic gives the same Falcon key in Node (`signer/pq_keys.mjs`) and in the browser
+(`docs/index.html`); key generation took about 0.7 s in Node. The browser demo restores both keys
+from the mnemonic and its Falcon public key matches the key registered on-chain. The caveat above
+still applies: the key is defined by this library's key generation procedure.
+
 ## Reference implementation (non-normative)
 
 - `scripts/falcon_from_seed.py`: replaces `os.urandom` inside falcon.py's NTRU key generation

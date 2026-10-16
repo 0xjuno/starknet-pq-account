@@ -9,10 +9,13 @@
     "demo": "node demo.mjs",
     "negative": "node negative_test.mjs",
     "migrate": "node migrate_demo.mjs",
-    "backup": "node backup_demo.mjs"
+    "backup": "node backup_demo.mjs",
+    "browser-check": "node browser_signer_check.mjs",
+    "browser-setup": "node browser_setup.mjs"
   },
   "dependencies": {
     "@noble/hashes": "1.6.1",
+    "@noble/post-quantum": "0.6.1",
     "@scure/bip32": "1.7.0",
     "@scure/bip39": "1.6.0",
     "@scure/starknet": "1.1.0",

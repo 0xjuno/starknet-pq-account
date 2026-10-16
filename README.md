@@ -27,8 +27,9 @@ in-place upgrade, the hybrid signature check, and the key backup that wallets wo
 | --- | --- |
 | `HybridPoseidonAccount` | New account that accepts a transaction only if BOTH a STARK-curve ECDSA signature and a Falcon-512 signature verify over the same hash. |
 | `HybridMigratableAccount` | Thin account class for in-place migration of an existing OpenZeppelin account. Keeps the OZ storage key `Account_public_key`, registers a Falcon key, and library-calls a declared verifier class (swappable later without migrating again). |
-| Key backup profile v0 | One BIP39 mnemonic restores both keys. See [`contracts/docs/key-backup-v0.md`](contracts/docs/key-backup-v0.md). |
-| Demo scripts | Sepolia scripts for deployment, migration, negative tests and backup/recovery (`signer/`). |
+| Key backup profile | One BIP39 mnemonic restores both keys. See [`contracts/docs/key-backup-v0.md`](contracts/docs/key-backup-v0.md). |
+| Browser signer | Falcon-512 signing in the browser with [@noble/post-quantum](https://github.com/paulmillr/noble-post-quantum) (pure JS), converted by `signer/falcon_adapter.mjs` into the layout of the standard SHAKE-256 on-chain verifier. Demo page: [`docs/index.html`](docs/index.html). |
+| Demo scripts | Sepolia scripts for deployment, migration, negative tests, backup/recovery and the browser path (`signer/`). |
 
 ### Migration flow
 
@@ -56,6 +57,8 @@ self-call, so the atomic flow above is the recommended path.
 | In-place migration (same address) | [0x75b5c5e2…](https://sepolia.voyager.online/tx/0x75b5c5e20cb189d72f228d033627c863f781b930df07fefefc3f548186aeef0) |
 | Hybrid-signed transfer after migration | [0x521ff2b3…](https://sepolia.voyager.online/tx/0x521ff2b341561abb0bc71581a4feaf650311bf0398176b5d7f1dc2c16343d57) |
 | Transfer signed with keys restored from the mnemonic | [0x3ba4e173…](https://sepolia.voyager.online/tx/0x3ba4e17369011649b2ec02b97df634dfd7cd417630853300fa94b2f80484c57) |
+| Account migrated with the standard SHAKE-256 verifier | [0x32e8ca84…](https://sepolia.voyager.online/tx/0x32e8ca84a51b8c78ca2a625723ee2dc60aae771da6b8ce4e1ad99bbbaccfcdb) |
+| Transfer signed in a browser (ECDSA + noble Falcon-512) | [0x75c5bffb…](https://sepolia.voyager.online/tx/0x75c5bffb108e430df5cb92f3b79ba22e419a1be5a75f231bfc15289b965dd80) |
 
 - Migrated account [`0x54370be5…4c41`](https://sepolia.voyager.online/contract/0x54370be5a940849f13c01f269d95d06c57d15495da594f3e01dfb6eebdb4c41):
   balance before 3.974179 STRK, after 3.750300 STRK; the difference equals the migration fee exactly.
@@ -64,6 +67,18 @@ self-call, so the atomic flow above is the recommended path.
   Observed Sepolia fee for a hybrid transfer: about 0.18 STRK.
 - Declaring the thin migratable class cost 3.8 STRK on Sepolia, against 51.6 STRK for the full
   hybrid class, because verification is shared through a library call.
+- Browser path: the same account class points at the standard SHAKE-256 verifier
+  (`0x2255fc21…1c92`, declared for 50.8 STRK). A browser-signed transfer used about 49.6M L2 gas
+  (about 0.63 STRK on Sepolia) and an ECDSA-only transfer from the browser is rejected in
+  `__validate__`. Signatures from `@noble/post-quantum` were cross-checked against an independent
+  Python computation and pass the Cairo verifier in `contracts/src/tests_browser.cairo`.
+
+### Live demo
+
+[johyeonchae.github.io/starknet-pq-account](https://johyeonchae.github.io/starknet-pq-account/)
+restores both keys from a 24-word testnet mnemonic inside the browser tab and sends a hybrid-signed
+transfer. It needs the mnemonic of an account migrated with `node browser_setup.mjs`; a demo
+mnemonic is available on request.
 
 ## Security model and limits
 
@@ -73,7 +88,8 @@ self-call, so the atomic flow above is the recommended path.
   the SHAKE-256 variant follows the standard and costs about 4x the gas.
 - After migration, OpenZeppelin extras such as SRC-9 outside execution and `set_public_key` are
   not available.
-- Signing currently runs through a Python Falcon signer; browser and hardware signing are open.
+- Browser signing works with `@noble/post-quantum`; hardware wallets and passkey-protected key
+  storage are open.
 - Key backup reproducibility depends on the pinned falcon.py commit (see the backup doc).
 
 ## Quickstart
@@ -85,7 +101,7 @@ Requirements: Scarb 2.18.0, Node.js 20+, Python 3.11+ with `numpy`, `pycryptodom
 ```
 cd contracts
 scarb build
-scarb cairo-test          # 23 tests
+scarb cairo-test          # 26 tests
 
 cd ../signer
 npm install
@@ -95,6 +111,8 @@ node setup_keys.mjs     # testnet keys under .keys/ (gitignored); fund the print
 node demo.mjs           # declare + deploy a hybrid account, hybrid transfer
 node migrate_demo.mjs   # migrate an OZ account in place
 node backup_demo.mjs    # mnemonic backup and recovery
+node browser_signer_check.mjs   # offline: noble signature vs Python vs Cairo fixture
+node browser_setup.mjs  # SHAKE verifier + account for the browser demo (docs/index.html)
 ```
 
 ## Credits

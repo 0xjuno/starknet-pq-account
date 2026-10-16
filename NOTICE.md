@@ -8,4 +8,7 @@
   repository (MIT).
 - Falcon key generation and signing use [falcon.py](https://github.com/tprest/falcon.py) by Thomas Prest
   (MIT License), commit `5145a818c9512b4a443507d3375e75dae3076af6`. It is not vendored; point `FALCON_PY_DIR`
-  at a checkout of that commit.
+  at a checkout of that commit. `signer/falcon_ntt_roots.json` holds falcon.py's NTT root constants
+  (exported by `scripts/export_ntt_roots.py`).
+- Browser and Node Falcon-512 signing use [@noble/post-quantum](https://github.com/paulmillr/noble-post-quantum)
+  0.6.1 (MIT License), loaded as a dependency or from jsDelivr; it is not vendored.

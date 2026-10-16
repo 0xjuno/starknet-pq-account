@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PQ Account Signer</title>
+<style>
+  :root { --ink:#14171f; --soft:#4d5464; --line:#dfe2ea; --paper:#f7f8fb; --panel:#fff; --accent:#2b3a8f; --ok:#1f6b45; --okbg:#e8f4ed; --bad:#a3261b; --badbg:#fbeaea;
+          --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace; --body:system-ui,-apple-system,"Segoe UI",sans-serif; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#e8eaf1; --soft:#a6acba; --line:#2a2f3c; --paper:#0f1218; --panel:#161a22; --accent:#a7b5ff; --ok:#7fd3a4; --okbg:#13261c; --bad:#ff9b8f; --badbg:#2b1512; color-scheme:dark; } }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.6 var(--body); }
+  main { max-width:760px; margin:0 auto; padding:32px max(16px, env(safe-area-inset-left,0px)) 64px; display:grid; gap:20px; }
+  h1 { font-size:24px; margin:0; } p { margin:0; } .soft { color:var(--soft); }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; display:grid; gap:12px; }
+  textarea, input { width:100%; font:13px/1.5 var(--mono); padding:10px; border:1px solid var(--line); border-radius:8px; background:var(--paper); color:var(--ink); }
+  button { font:600 14px var(--body); padding:10px 14px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--panel); cursor:pointer; justify-self:start; }
+  button.ghost { background:transparent; color:var(--accent); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  dl { margin:0; display:grid; grid-template-columns:150px 1fr; gap:6px 12px; font-size:13px; }
+  dt { color:var(--soft); } dd { margin:0; font-family:var(--mono); word-break:break-all; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .log { font:12px/1.5 var(--mono); white-space:pre-wrap; background:var(--paper); border-radius:8px; padding:10px; min-height:44px; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+  .note { font-size:13px; background:var(--badbg); color:var(--bad); border-radius:8px; padding:10px 12px; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>PQ account signer</h1>
+    <p class="soft">Sign a Starknet Sepolia transaction in this browser with BOTH a STARK-curve ECDSA key and a Falcon-512 key, derived from one 24-word mnemonic. The account was migrated in place from an OpenZeppelin account.</p>
+  </header>
+  <p class="note">Testnet only. Experimental and unaudited. Keys are derived in this tab and never sent anywhere; the mnemonic is not stored.</p>
+
+  <section>
+    <strong>1. Restore keys from the mnemonic</strong>
+    <textarea id="mnemonic" rows="3" placeholder="24 testnet words" autocomplete="off" spellcheck="false"></textarea>
+    <button id="derive">Derive keys and check the account</button>
+    <dl id="keys" hidden>
+      <dt>Account</dt><dd id="acct"></dd>
+      <dt>ECDSA public key</dt><dd id="ecpk"></dd>
+      <dt>Falcon key (first felt)</dt><dd id="fpk"></dd>
+      <dt>On-chain check</dt><dd id="check"></dd>
+    </dl>
+  </section>
+
+  <section>
+    <strong>2. Send 0.01 STRK</strong>
+    <p class="soft">The transaction hash is signed twice here: ECDSA (2 felts) and Falcon-512 with the standard SHAKE-256 hash-to-point (60 felts). The account accepts it only if both verify.</p>
+    <div class="row">
+      <button id="send" disabled>Sign with ECDSA + Falcon and send</button>
+      <button id="attack" class="ghost" disabled>Try ECDSA only (should be rejected)</button>
+    </div>
+    <div id="log" class="log">Waiting for keys.</div>
+  </section>
+
+  <p class="soft">Source: <a href="https://github.com/johyeonchae/starknet-pq-account" target="_blank" rel="noopener">github.com/johyeonchae/starknet-pq-account</a></p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/starknet@10.8.0/dist/index.global.min.js"></script>
+<script type="module">
+const { Account, CallData, RpcProvider, Signer, cairo, ec, hash, num } = window.starknet;
+import { falcon512 } from "https://cdn.jsdelivr.net/npm/@noble/post-quantum@0.6.1/falcon.js/+esm";
+import { mnemonicToSeedSync, validateMnemonic } from "https://cdn.jsdelivr.net/npm/@scure/bip39@1.6.0/+esm";
+import { wordlist } from "https://cdn.jsdelivr.net/npm/@scure/bip39@1.6.0/wordlists/english.js/+esm";
+import { HDKey } from "https://cdn.jsdelivr.net/npm/@scure/bip32@1.7.0/+esm";
+import { getStarkKey, grindKey } from "https://cdn.jsdelivr.net/npm/@scure/starknet@1.1.0/+esm";
+import { hkdf } from "https://cdn.jsdelivr.net/npm/@noble/hashes@1.6.1/hkdf.js/+esm";
+import { sha512 } from "https://cdn.jsdelivr.net/npm/@noble/hashes@1.6.1/sha2.js/+esm";
+
+const CONFIG = {"rpc":"https://api.zan.top/public/starknet-sepolia/rpc/v0_10","strk":"0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d","recipient":"0x18f5c265d537c7632bea18631b786d8365ceba93a6ff2b66c0ad3e2d5f1817d","voyager":"https://sepolia.voyager.online"};
+const ROOTS = {"2": [1479, 10810], "4": [4043, 8246, 5146, 7143], "8": [5736, 6553, 4134, 8155, 722, 11567, 1305, 10984], "16": [1646, 10643, 1212, 11077, 5860, 6429, 3195, 9094, 2545, 9744, 3621, 8668, 3504, 8785, 3542, 8747], "32": [4591, 7698, 5728, 6561, 5023, 7266, 5828, 6461, 4978, 7311, 1351, 10938, 3328, 8961, 5777, 6512, 2975, 9314, 563, 11726, 3006, 9283, 2744, 9545, 949, 11340, 2625, 9664, 4821, 7468, 2639, 9650], "64": [1000, 11289, 4320, 7969, 3091, 9198, 81, 12208, 2963, 9326, 4896, 7393, 3051, 9238, 2366, 9923, 1853, 10436, 140, 12149, 4611, 7678, 726, 11563, 4255, 8034, 1177, 11112, 2768, 9521, 1635, 10654, 3712, 8577, 3135, 9154, 2747, 9542, 4846, 7443, 3553, 8736, 4805, 7484, 2294, 9995, 1062, 11227, 1326, 10963, 5086, 7203, 3014, 9275, 3201, 9088, 1170, 11119, 2319, 9970, 955, 11334, 790, 11499], "128": [544, 11745, 5791, 6498, 339, 11950, 2468, 9821, 2842, 9447, 480, 11809, 9, 12280, 1022, 11267, 4278, 8011, 1673, 10616, 4989, 7300, 5331, 6958, 3584, 8705, 4177, 8112, 1381, 10908, 2525, 9764, 2396, 9893, 4452, 7837, 3296, 8993, 3949, 8340, 130, 12159, 4354, 7935, 5374, 6915, 2837, 9452, 5767, 6522, 827, 11462, 3748, 8541, 953, 11336, 5067, 7222, 2197, 10092, 118, 12171, 2476, 9813, 2548, 9741, 4231, 8058, 355, 11934, 3382, 8907, 3707, 8582, 1759, 10530, 3694, 8595, 5179, 7110, 5542, 6747, 145, 12144, 3637, 8652, 3459, 8830, 5911, 6378, 4890, 7399, 3932, 8357, 2731, 9558, 2089, 10200, 5092, 7197, 2881, 9408, 3284, 9005, 729, 11560, 3241, 9048, 3289, 9000, 2013, 10276, 5755, 6534, 4632, 7657, 1260, 11029, 4388, 7901, 334, 11955, 2426, 9863, 1696, 10593, 1428, 10861], "256": [1663, 10626, 1777, 10512, 1426, 10863, 4654, 7635, 5291, 6998, 2704, 9585, 4938, 7351, 3636, 8653, 3915, 8374, 2166, 10123, 113, 12176, 4919, 7370, 3, 12286, 4437, 7852, 160, 12129, 3149, 9140, 4057, 8232, 3271, 9018, 1689, 10600, 3364, 8925, 4372, 7917, 2174, 10115, 4414, 7875, 2847, 9442, 2645, 9644, 4053, 8236, 2305, 9984, 5042, 7247, 5195, 7094, 2780, 9509, 1484, 10805, 4895, 7394, 3016, 9273, 243, 12046, 3000, 9289, 671, 11618, 3136, 9153, 5191, 7098, 2399, 9890, 3400, 8889, 2178, 10111, 1544, 10745, 420, 11869, 5559, 6730, 476, 11813, 3531, 8758, 3985, 8304, 4905, 7384, 5332, 6957, 3510, 8779, 2370, 9919, 2865, 9424, 2969, 9320, 3978, 8311, 2686, 9603, 3247, 9042, 4048, 8241, 2249, 10040, 1153, 11136, 2884, 9405, 5407, 6882, 3186, 9103, 1630, 10659, 2126, 10163, 2187, 10102, 2566, 9723, 2422, 9867, 6039, 6250, 2987, 9302, 6022, 6267, 2437, 9852, 3646, 8643, 875, 11414, 3780, 8509, 1607, 10682, 4976, 7313, 5011, 7278, 1002, 11287, 4284, 8005, 5088, 7201, 3248, 9041, 1207, 11082, 1168, 11121, 5277, 7012, 1065, 11224, 2143, 10146, 404, 11885, 4645, 7644, 1912, 10377, 1378, 10911, 435, 11854, 4337, 7952, 2381, 9908, 5444, 6845, 4096, 8193, 493, 11796, 545, 11744, 5019, 7270, 3704, 8585, 2678, 9611, 1537, 10752, 242, 12047, 4714, 7575, 4143, 8146, 27, 12262, 3066, 9223, 3763, 8526, 1440, 10849, 5084, 7205, 1632, 10657, 1017, 11272, 4885, 7404, 3778, 8511, 3833, 8456, 390, 11899, 773, 11516, 2401, 9888, 442, 11847, 5101, 7188, 1067, 11222, 2912, 9377, 5698, 6591, 354, 11935, 4861, 7428, 2859, 9430, 1045, 11244, 5012, 7277, 2481, 9808], "512": [3957, 8332, 2839, 9450, 2127, 10162, 151, 12138, 431, 11858, 1579, 10710, 5906, 6383, 2505, 9784, 1323, 10966, 2766, 9523, 52, 12237, 3174, 9115, 6055, 6234, 3336, 8953, 677, 11612, 5874, 6415, 4169, 8120, 3127, 9162, 5241, 7048, 2920, 9369, 1010, 11279, 5468, 6821, 787, 11502, 3482, 8807, 1321, 10968, 192, 12097, 4912, 7377, 2049, 10240, 4698, 7591, 5057, 7232, 4780, 7509, 3445, 8844, 1956, 10333, 5009, 7280, 6008, 6281, 885, 11404, 3532, 8757, 1003, 11286, 58, 12231, 241, 12048, 975, 11314, 4212, 8077, 2844, 9445, 3438, 8851, 1105, 11184, 142, 12147, 5681, 6608, 3477, 8812, 2302, 9987, 605, 11684, 4213, 8076, 504, 11785, 5886, 6403, 4782, 7507, 5594, 6695, 3029, 9260, 421, 11868, 4080, 8209, 6068, 6221, 3602, 8687, 6077, 6212, 4624, 7665, 3263, 9026, 3600, 8689, 4948, 7341, 6137, 6152, 400, 11889, 1728, 10561, 5862, 6427, 6136, 6153, 5415, 6874, 3643, 8646, 56, 12233, 3199, 9090, 5206, 7083, 5529, 6760, 3565, 8724, 654, 11635, 1987, 10302, 1702, 10587, 3988, 8301, 468, 11821, 316, 11973, 382, 11907, 3710, 8579, 6093, 6196, 5446, 6843, 5339, 6950, 973, 11316, 1254, 11035, 1359, 10930, 5435, 6854, 2033, 10256, 3998, 8291, 3879, 8410, 1922, 10367, 3860, 8429, 5445, 6844, 4536, 7753, 1050, 11239, 3818, 8471, 6118, 6171, 1190, 11099, 2683, 9606, 3789, 8500, 147, 12142, 5456, 6833, 4449, 7840, 4749, 7540, 5537, 6752, 4789, 7500, 4467, 7822, 1018, 11271, 5925, 6364, 1041, 11248, 3514, 8775, 2344, 9945, 1278, 11011, 5574, 6715, 1973, 10316, 4324, 7965, 4916, 7373, 4075, 8214, 5315, 6974, 5079, 7210, 3262, 9027, 522, 11767, 2169, 10120, 1200, 11089, 5184, 7105, 2555, 9734, 6122, 6167, 5297, 6992, 6119, 6170, 3956, 8333, 1360, 10929, 1962, 10327, 1594, 10695, 5961, 6328, 5106, 7183, 4298, 7991, 3329, 8960, 168, 12121, 2692, 9597, 4049, 8240, 3728, 8561, 1159, 11130, 5990, 6299, 948, 11341, 1146, 11143, 1404, 10885, 325, 11964, 5766, 6523, 652, 11637, 295, 11994, 6099, 6190, 2919, 9370, 3762, 8527, 4016, 8273, 4077, 8212, 6065, 6224, 835, 11454, 3570, 8719, 4240, 8049, 4046, 8243, 709, 11580, 3150, 9139, 1319, 10970, 1058, 11231, 4079, 8210, 922, 11367, 441, 11848, 4322, 7967, 1958, 10331, 2078, 10211, 1112, 11177, 3834, 8455, 5257, 7032, 4433, 7856, 5919, 6370, 5486, 6803, 3054, 9235, 1747, 10542, 3123, 9166, 2948, 9341, 2503, 9786, 5782, 6507, 1566, 10723, 64, 12225, 3656, 8633, 2459, 9830, 683, 11606, 1293, 10996, 4737, 7552, 5429, 6860, 4774, 7515, 5908, 6381, 453, 11836, 418, 11871, 3772, 8517, 3991, 8298, 3969, 8320, 2767, 9522, 156, 12133, 2281, 10008, 5876, 6413, 5333, 6956, 2031, 10258, 3963, 8326, 576, 11713, 2447, 9842, 6142, 6147, 2051, 10238, 1954, 10335, 1805, 10484, 2882, 9407, 3529, 8760, 3434, 8855, 2908, 9381, 218, 12071, 3030, 9259, 4115, 8174, 1843, 10446, 2361, 9928, 3202, 9087, 4493, 7796, 2057, 10232, 5369, 6920, 1512, 10777, 350, 11939, 1815, 10474, 5383, 6906, 49, 12240, 1263, 11026, 5915, 6374, 1483, 10806, 1489, 10800, 2500, 9789, 5942, 6347, 1583, 10706, 1693, 10596, 3009, 9280, 174, 12115, 723, 11566, 2738, 9551, 5868, 6421, 5735, 6554, 2655, 9634, 3315, 8974, 426, 11863, 4754, 7535, 1858, 10431, 1975, 10314, 3757, 8532, 2925, 9364, 347, 11942]};
+const Q = 12289, N = 512, SQR1 = 1479;
+const OZ_CLASS = "0x05b4b537eaa2399e3aa99c4e2e0208ebd6c71bc1467938cd52c798c601e43564";
+const $ = (id) => document.getElementById(id);
+const log = (msg, cls) => { const el = $("log"); el.textContent = msg; el.className = "log " + (cls || ""); };
+const provider = new RpcProvider({ nodeUrl: CONFIG.rpc });
+let keys = null, address = null;
+
+// --- key backup profile v0.1 (same as signer/pq_keys.mjs) ---
+function deriveAccountKeys(mnemonic) {
+  if (!validateMnemonic(mnemonic, wordlist)) throw new Error("Invalid mnemonic.");
+  const seed = mnemonicToSeedSync(mnemonic);
+  const node = HDKey.fromMasterSeed(seed).derive("m/44'/9004'/0'/0/0");
+  const g = grindKey(node.privateKey);
+  const ecdsaPrivateKey = g.startsWith("0x") ? g : "0x" + g;
+  const ecdsaPublicKey = "0x" + BigInt(getStarkKey(ecdsaPrivateKey)).toString(16);
+  const te = new TextEncoder();
+  const falconSeed = hkdf(sha512, seed, te.encode("starknet-pq-backup-v0.1"), te.encode("falcon-512/noble/account/0"), 48);
+  const { publicKey, secretKey } = falcon512.keygen(falconSeed);
+  return { ecdsaPrivateKey, ecdsaPublicKey, falconPublicKey: publicKey, falconSecretKey: secretKey };
+}
+
+// --- noble Falcon -> on-chain felts (same as signer/falcon_adapter.mjs) ---
+function decodePublicKey(pk) {
+  const h = new Array(N); let acc = 0, bits = 0, pos = 1;
+  for (let i = 0; i < N; i++) { while (bits < 14) { acc = (acc << 8) | pk[pos++]; bits += 8; } bits -= 14; h[i] = (acc >>> bits) & 0x3fff; acc &= (1 << bits) - 1; }
+  return h;
+}
+function decodeSignature(sig) {
+  const nonce = sig.slice(1, 41), data = sig.slice(41), s2 = new Array(N);
+  let acc = 0, bits = 0, pos = 0;
+  const read = (n) => { while (bits < n) { acc = (acc << 8) | data[pos++]; bits += 8; } bits -= n; const v = (acc >>> bits) & ((1 << n) - 1); acc &= (1 << bits) - 1; return v; };
+  for (let i = 0; i < N; i++) { const s = read(1), low = read(7); let high = 0; while (!read(1)) high++; const v = low | (high << 7); s2[i] = s ? -v : v; }
+  return { nonce, s2 };
+}
+function ntt(f) {
+  const n = f.length;
+  if (n === 2) return [(f[0] + SQR1 * f[1]) % Q, ((f[0] - SQR1 * f[1]) % Q + Q) % Q];
+  const a = ntt(f.filter((_, i) => i % 2 === 0)), b = ntt(f.filter((_, i) => i % 2 === 1)), w = ROOTS[n], out = new Array(n);
+  for (let i = 0; i < n / 2; i++) { const t = (w[2 * i] * b[i]) % Q; out[2 * i] = (a[i] + t) % Q; out[2 * i + 1] = ((a[i] - t) % Q + Q) % Q; }
+  return out;
+}
+function pack512(v) {
+  const half = (c) => c.reduceRight((acc, x) => acc * BigInt(Q) + BigInt(x), 0n), out = [];
+  for (let j = 0; j < 28; j++) out.push(half(v.slice(18 * j, 18 * j + 9)) + (half(v.slice(18 * j + 9, 18 * j + 18)) << 128n));
+  out.push(half(v.slice(504, 512)));
+  return out;
+}
+function mulNegacyclic(a, b) {
+  const out = new Array(N).fill(0);
+  for (let i = 0; i < N; i++) { if (!a[i]) continue; for (let j = 0; j < N; j++) { const k = i + j, p = a[i] * b[j]; if (k < N) out[k] += p; else out[k - N] -= p; } }
+  return out.map((x) => ((x % Q) + Q) % Q);
+}
+const leInt = (b) => b.reduceRight((acc, x) => (acc << 8n) | BigInt(x), 0n);
+function hashToMessage(txHash) { let v = BigInt(txHash); const out = new Uint8Array(32); for (let i = 0; i < 32; i++) { out[i] = Number(v & 0xffn); v >>= 8n; } return out; }
+function falconFelts(txHash) {
+  const sig = falcon512.sign(hashToMessage(txHash), keys.falconSecretKey);
+  const { nonce, s2 } = decodeSignature(sig), h = decodePublicKey(keys.falconPublicKey);
+  const s2q = s2.map((x) => ((x % Q) + Q) % Q);
+  return [...pack512(s2q), leInt(nonce.slice(0, 20)), leInt(nonce.slice(20)), ...pack512(mulNegacyclic(s2q, h))];
+}
+
+class HybridSigner extends Signer {
+  constructor(pk, withFalcon) { super(pk); this.pk = pk; this.withFalcon = withFalcon; }
+  async signRaw(msgHash) {
+    const h = num.toHex(msgHash), e = ec.starkCurve.sign(h, this.pk);
+    const sig = [num.toHex(e.r), num.toHex(e.s)];
+    return this.withFalcon ? [...sig, ...falconFelts(h).map((x) => num.toHex(x))] : sig;
+  }
+}
+async function bounds() {
+  const b = await provider.getBlockWithTxHashes("latest");
+  return {
+    l1_gas: { max_amount: 0n, max_price_per_unit: BigInt(b.l1_gas_price.price_in_fri) * 2n },
+    l1_data_gas: { max_amount: 5000n, max_price_per_unit: BigInt(b.l1_data_gas_price.price_in_fri) * 2n },
+    l2_gas: { max_amount: 70000000n, max_price_per_unit: (BigInt(b.l2_gas_price.price_in_fri) * 5n) / 4n },
+  };
+}
+const transfer = () => ({ contractAddress: CONFIG.strk, entrypoint: "transfer", calldata: CallData.compile({ recipient: CONFIG.recipient, amount: cairo.uint256(10n ** 16n) }) });
+
+$("derive").addEventListener("click", async () => {
+  try {
+    $("derive").disabled = true; log("Deriving keys...");
+    keys = deriveAccountKeys($("mnemonic").value.trim().toLowerCase().split(/\s+/).join(" "));
+    $("mnemonic").value = "";
+    address = hash.calculateContractAddressFromHash(keys.ecdsaPublicKey, OZ_CLASS, [keys.ecdsaPublicKey], 0);
+    const mine = pack512(ntt(decodePublicKey(keys.falconPublicKey))).map((x) => num.toHex(x));
+    $("acct").innerHTML = `<a href="${CONFIG.voyager}/contract/${address}" target="_blank" rel="noopener">${address}</a>`;
+    $("ecpk").textContent = keys.ecdsaPublicKey; $("fpk").textContent = mine[0]; $("keys").hidden = false;
+    const onchain = await provider.callContract({ contractAddress: address, entrypoint: "get_falcon_public_key", calldata: [] }, "latest");
+    const match = JSON.stringify(onchain.slice(1).map((x) => num.toHex(x))) === JSON.stringify(mine);
+    $("check").innerHTML = match ? '<span class="ok">Falcon key on-chain matches the restored key</span>' : '<span class="bad">On-chain key does not match</span>';
+    $("send").disabled = !match; $("attack").disabled = !match;
+    log(match ? "Ready." : "This mnemonic does not control a migrated account.", match ? "ok" : "bad");
+  } catch (e) { log(String(e.message || e), "bad"); } finally { $("derive").disabled = false; }
+});
+
+async function send(withFalcon) {
+  const acc = new Account({ provider, address, signer: new HybridSigner(keys.ecdsaPrivateKey, withFalcon) });
+  const nonce = await provider.getNonceForAddress(address, "latest");
+  return acc.execute(transfer(), { nonce, tip: 0n, resourceBounds: await bounds() });
+}
+$("send").addEventListener("click", async () => {
+  $("send").disabled = true;
+  try {
+    log("Signing in this browser (ECDSA + Falcon-512) and sending...");
+    const t0 = performance.now();
+    const r = await send(true);
+    log(`Sent. Waiting for inclusion...\n${r.transaction_hash}`);
+    const rc = await provider.waitForTransaction(r.transaction_hash);
+    log(`${rc.execution_status || "ACCEPTED"} in ${((performance.now() - t0) / 1000).toFixed(1)} s\nL2 gas: ${rc.execution_resources?.l2_gas ?? "?"}\n${CONFIG.voyager}/tx/${r.transaction_hash}`, "ok");
+  } catch (e) { const m = String(e.message || e); log("Failed:\n" + m.slice(Math.max(0, m.length - 500)), "bad"); } finally { $("send").disabled = false; }
+});
+$("attack").addEventListener("click", async () => {
+  $("attack").disabled = true;
+  try { log("Sending with the ECDSA signature only..."); const r = await send(false); log(`Unexpected: accepted ${r.transaction_hash}`, "bad"); }
+  catch (e) {
+    const m = String(e.message || e), tail = m.slice(m.lastIndexOf("\n") + 1).slice(0, 300);
+    if (/validate/i.test(m) && /panicked|invalid signature/i.test(m)) log("Rejected as expected: __validate__ refused the ECDSA-only signature (the Falcon part is missing).\n" + tail, "ok");
+    else log("Not sent, for a reason unrelated to the signature check:\n" + tail, "bad");
+  }
+  finally { $("attack").disabled = false; }
+});
+</script>
+</body>
+</html>

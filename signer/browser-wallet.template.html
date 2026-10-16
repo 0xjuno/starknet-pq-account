@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PQ Account Signer</title>
+<style>
+  :root { --ink:#14171f; --soft:#4d5464; --line:#dfe2ea; --paper:#f7f8fb; --panel:#fff; --accent:#2b3a8f; --ok:#1f6b45; --okbg:#e8f4ed; --bad:#a3261b; --badbg:#fbeaea;
+          --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace; --body:system-ui,-apple-system,"Segoe UI",sans-serif; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#e8eaf1; --soft:#a6acba; --line:#2a2f3c; --paper:#0f1218; --panel:#161a22; --accent:#a7b5ff; --ok:#7fd3a4; --okbg:#13261c; --bad:#ff9b8f; --badbg:#2b1512; color-scheme:dark; } }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.6 var(--body); }
+  main { max-width:760px; margin:0 auto; padding:32px max(16px, env(safe-area-inset-left,0px)) 64px; display:grid; gap:20px; }
+  h1 { font-size:24px; margin:0; } p { margin:0; } .soft { color:var(--soft); }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; display:grid; gap:12px; }
+  textarea, input { width:100%; font:13px/1.5 var(--mono); padding:10px; border:1px solid var(--line); border-radius:8px; background:var(--paper); color:var(--ink); }
+  button { font:600 14px var(--body); padding:10px 14px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--panel); cursor:pointer; justify-self:start; }
+  button.ghost { background:transparent; color:var(--accent); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  dl { margin:0; display:grid; grid-template-columns:150px 1fr; gap:6px 12px; font-size:13px; }
+  dt { color:var(--soft); } dd { margin:0; font-family:var(--mono); word-break:break-all; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .log { font:12px/1.5 var(--mono); white-space:pre-wrap; background:var(--paper); border-radius:8px; padding:10px; min-height:44px; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+  .note { font-size:13px; background:var(--badbg); color:var(--bad); border-radius:8px; padding:10px 12px; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>PQ account signer</h1>
+    <p class="soft">Sign a Starknet Sepolia transaction in this browser with BOTH a STARK-curve ECDSA key and a Falcon-512 key, derived from one 24-word mnemonic. The account was migrated in place from an OpenZeppelin account.</p>
+  </header>
+  <p class="note">Testnet only. Experimental and unaudited. Keys are derived in this tab and never sent anywhere; the mnemonic is not stored.</p>
+
+  <section>
+    <strong>1. Restore keys from the mnemonic</strong>
+    <textarea id="mnemonic" rows="3" placeholder="24 testnet words" autocomplete="off" spellcheck="false"></textarea>
+    <button id="derive">Derive keys and check the account</button>
+    <dl id="keys" hidden>
+      <dt>Account</dt><dd id="acct"></dd>
+      <dt>ECDSA public key</dt><dd id="ecpk"></dd>
+      <dt>Falcon key (first felt)</dt><dd id="fpk"></dd>
+      <dt>On-chain check</dt><dd id="check"></dd>
+    </dl>
+  </section>
+
+  <section>
+    <strong>2. Send 0.01 STRK</strong>
+    <p class="soft">The transaction hash is signed twice here: ECDSA (2 felts) and Falcon-512 with the standard SHAKE-256 hash-to-point (60 felts). The account accepts it only if both verify.</p>
+    <div class="row">
+      <button id="send" disabled>Sign with ECDSA + Falcon and send</button>
+      <button id="attack" class="ghost" disabled>Try ECDSA only (should be rejected)</button>
+    </div>
+    <div id="log" class="log">Waiting for keys.</div>
+  </section>
+
+  <p class="soft">Source: <a href="https://github.com/johyeonchae/starknet-pq-account" target="_blank" rel="noopener">github.com/johyeonchae/starknet-pq-account</a></p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/starknet@10.8.0/dist/index.global.min.js"></script>
+<script type="module">
+const { Account, CallData, RpcProvider, Signer, cairo, ec, hash, num } = window.starknet;
+import { falcon512 } from "https://cdn.jsdelivr.net/npm/@noble/post-quantum@0.6.1/falcon.js/+esm";
+import { mnemonicToSeedSync, validateMnemonic } from "https://cdn.jsdelivr.net/npm/@scure/bip39@1.6.0/+esm";
+import { wordlist } from "https://cdn.jsdelivr.net/npm/@scure/bip39@1.6.0/wordlists/english.js/+esm";
+import { HDKey } from "https://cdn.jsdelivr.net/npm/@scure/bip32@1.7.0/+esm";
+import { getStarkKey, grindKey } from "https://cdn.jsdelivr.net/npm/@scure/starknet@1.1.0/+esm";
+import { hkdf } from "https://cdn.jsdelivr.net/npm/@noble/hashes@1.6.1/hkdf.js/+esm";
+import { sha512 } from "https://cdn.jsdelivr.net/npm/@noble/hashes@1.6.1/sha2.js/+esm";
+
+const CONFIG = __CONFIG__;
+const ROOTS = __ROOTS__;
+const Q = 12289, N = 512, SQR1 = 1479;
+const OZ_CLASS = "0x05b4b537eaa2399e3aa99c4e2e0208ebd6c71bc1467938cd52c798c601e43564";
+const $ = (id) => document.getElementById(id);
+const log = (msg, cls) => { const el = $("log"); el.textContent = msg; el.className = "log " + (cls || ""); };
+const provider = new RpcProvider({ nodeUrl: CONFIG.rpc });
+let keys = null, address = null;
+
+// --- key backup profile v0.1 (same as signer/pq_keys.mjs) ---
+function deriveAccountKeys(mnemonic) {
+  if (!validateMnemonic(mnemonic, wordlist)) throw new Error("Invalid mnemonic.");
+  const seed = mnemonicToSeedSync(mnemonic);
+  const node = HDKey.fromMasterSeed(seed).derive("m/44'/9004'/0'/0/0");
+  const g = grindKey(node.privateKey);
+  const ecdsaPrivateKey = g.startsWith("0x") ? g : "0x" + g;
+  const ecdsaPublicKey = "0x" + BigInt(getStarkKey(ecdsaPrivateKey)).toString(16);
+  const te = new TextEncoder();
+  const falconSeed = hkdf(sha512, seed, te.encode("starknet-pq-backup-v0.1"), te.encode("falcon-512/noble/account/0"), 48);
+  const { publicKey, secretKey } = falcon512.keygen(falconSeed);
+  return { ecdsaPrivateKey, ecdsaPublicKey, falconPublicKey: publicKey, falconSecretKey: secretKey };
+}
+
+// --- noble Falcon -> on-chain felts (same as signer/falcon_adapter.mjs) ---
+function decodePublicKey(pk) {
+  const h = new Array(N); let acc = 0, bits = 0, pos = 1;
+  for (let i = 0; i < N; i++) { while (bits < 14) { acc = (acc << 8) | pk[pos++]; bits += 8; } bits -= 14; h[i] = (acc >>> bits) & 0x3fff; acc &= (1 << bits) - 1; }
+  return h;
+}
+function decodeSignature(sig) {
+  const nonce = sig.slice(1, 41), data = sig.slice(41), s2 = new Array(N);
+  let acc = 0, bits = 0, pos = 0;
+  const read = (n) => { while (bits < n) { acc = (acc << 8) | data[pos++]; bits += 8; } bits -= n; const v = (acc >>> bits) & ((1 << n) - 1); acc &= (1 << bits) - 1; return v; };
+  for (let i = 0; i < N; i++) { const s = read(1), low = read(7); let high = 0; while (!read(1)) high++; const v = low | (high << 7); s2[i] = s ? -v : v; }
+  return { nonce, s2 };
+}
+function ntt(f) {
+  const n = f.length;
+  if (n === 2) return [(f[0] + SQR1 * f[1]) % Q, ((f[0] - SQR1 * f[1]) % Q + Q) % Q];
+  const a = ntt(f.filter((_, i) => i % 2 === 0)), b = ntt(f.filter((_, i) => i % 2 === 1)), w = ROOTS[n], out = new Array(n);
+  for (let i = 0; i < n / 2; i++) { const t = (w[2 * i] * b[i]) % Q; out[2 * i] = (a[i] + t) % Q; out[2 * i + 1] = ((a[i] - t) % Q + Q) % Q; }
+  return out;
+}
+function pack512(v) {
+  const half = (c) => c.reduceRight((acc, x) => acc * BigInt(Q) + BigInt(x), 0n), out = [];
+  for (let j = 0; j < 28; j++) out.push(half(v.slice(18 * j, 18 * j + 9)) + (half(v.slice(18 * j + 9, 18 * j + 18)) << 128n));
+  out.push(half(v.slice(504, 512)));
+  return out;
+}
+function mulNegacyclic(a, b) {
+  const out = new Array(N).fill(0);
+  for (let i = 0; i < N; i++) { if (!a[i]) continue; for (let j = 0; j < N; j++) { const k = i + j, p = a[i] * b[j]; if (k < N) out[k] += p; else out[k - N] -= p; } }
+  return out.map((x) => ((x % Q) + Q) % Q);
+}
+const leInt = (b) => b.reduceRight((acc, x) => (acc << 8n) | BigInt(x), 0n);
+function hashToMessage(txHash) { let v = BigInt(txHash); const out = new Uint8Array(32); for (let i = 0; i < 32; i++) { out[i] = Number(v & 0xffn); v >>= 8n; } return out; }
+function falconFelts(txHash) {
+  const sig = falcon512.sign(hashToMessage(txHash), keys.falconSecretKey);
+  const { nonce, s2 } = decodeSignature(sig), h = decodePublicKey(keys.falconPublicKey);
+  const s2q = s2.map((x) => ((x % Q) + Q) % Q);
+  return [...pack512(s2q), leInt(nonce.slice(0, 20)), leInt(nonce.slice(20)), ...pack512(mulNegacyclic(s2q, h))];
+}
+
+class HybridSigner extends Signer {
+  constructor(pk, withFalcon) { super(pk); this.pk = pk; this.withFalcon = withFalcon; }
+  async signRaw(msgHash) {
+    const h = num.toHex(msgHash), e = ec.starkCurve.sign(h, this.pk);
+    const sig = [num.toHex(e.r), num.toHex(e.s)];
+    return this.withFalcon ? [...sig, ...falconFelts(h).map((x) => num.toHex(x))] : sig;
+  }
+}
+async function bounds() {
+  const b = await provider.getBlockWithTxHashes("latest");
+  return {
+    l1_gas: { max_amount: 0n, max_price_per_unit: BigInt(b.l1_gas_price.price_in_fri) * 2n },
+    l1_data_gas: { max_amount: 5000n, max_price_per_unit: BigInt(b.l1_data_gas_price.price_in_fri) * 2n },
+    l2_gas: { max_amount: 70000000n, max_price_per_unit: (BigInt(b.l2_gas_price.price_in_fri) * 5n) / 4n },
+  };
+}
+const transfer = () => ({ contractAddress: CONFIG.strk, entrypoint: "transfer", calldata: CallData.compile({ recipient: CONFIG.recipient, amount: cairo.uint256(10n ** 16n) }) });
+
+$("derive").addEventListener("click", async () => {
+  try {
+    $("derive").disabled = true; log("Deriving keys...");
+    keys = deriveAccountKeys($("mnemonic").value.trim().toLowerCase().split(/\s+/).join(" "));
+    $("mnemonic").value = "";
+    address = hash.calculateContractAddressFromHash(keys.ecdsaPublicKey, OZ_CLASS, [keys.ecdsaPublicKey], 0);
+    const mine = pack512(ntt(decodePublicKey(keys.falconPublicKey))).map((x) => num.toHex(x));
+    $("acct").innerHTML = `<a href="${CONFIG.voyager}/contract/${address}" target="_blank" rel="noopener">${address}</a>`;
+    $("ecpk").textContent = keys.ecdsaPublicKey; $("fpk").textContent = mine[0]; $("keys").hidden = false;
+    const onchain = await provider.callContract({ contractAddress: address, entrypoint: "get_falcon_public_key", calldata: [] }, "latest");
+    const match = JSON.stringify(onchain.slice(1).map((x) => num.toHex(x))) === JSON.stringify(mine);
+    $("check").innerHTML = match ? '<span class="ok">Falcon key on-chain matches the restored key</span>' : '<span class="bad">On-chain key does not match</span>';
+    $("send").disabled = !match; $("attack").disabled = !match;
+    log(match ? "Ready." : "This mnemonic does not control a migrated account.", match ? "ok" : "bad");
+  } catch (e) { log(String(e.message || e), "bad"); } finally { $("derive").disabled = false; }
+});
+
+async function send(withFalcon) {
+  const acc = new Account({ provider, address, signer: new HybridSigner(keys.ecdsaPrivateKey, withFalcon) });
+  const nonce = await provider.getNonceForAddress(address, "latest");
+  return acc.execute(transfer(), { nonce, tip: 0n, resourceBounds: await bounds() });
+}
+$("send").addEventListener("click", async () => {
+  $("send").disabled = true;
+  try {
+    log("Signing in this browser (ECDSA + Falcon-512) and sending...");
+    const t0 = performance.now();
+    const r = await send(true);
+    log(`Sent. Waiting for inclusion...\n${r.transaction_hash}`);
+    const rc = await provider.waitForTransaction(r.transaction_hash);
+    log(`${rc.execution_status || "ACCEPTED"} in ${((performance.now() - t0) / 1000).toFixed(1)} s\nL2 gas: ${rc.execution_resources?.l2_gas ?? "?"}\n${CONFIG.voyager}/tx/${r.transaction_hash}`, "ok");
+  } catch (e) { const m = String(e.message || e); log("Failed:\n" + m.slice(Math.max(0, m.length - 500)), "bad"); } finally { $("send").disabled = false; }
+});
+$("attack").addEventListener("click", async () => {
+  $("attack").disabled = true;
+  try { log("Sending with the ECDSA signature only..."); const r = await send(false); log(`Unexpected: accepted ${r.transaction_hash}`, "bad"); }
+  catch (e) {
+    const m = String(e.message || e), tail = m.slice(m.lastIndexOf("\n") + 1).slice(0, 300);
+    if (/validate/i.test(m) && /panicked|invalid signature/i.test(m)) log("Rejected as expected: __validate__ refused the ECDSA-only signature (the Falcon part is missing).\n" + tail, "ok");
+    else log("Not sent, for a reason unrelated to the signature check:\n" + tail, "bad");
+  }
+  finally { $("attack").disabled = false; }
+});
+</script>
+</body>
+</html>
