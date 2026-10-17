@@ -22,15 +22,51 @@
 //! `register_falcon_public_key` on itself. (In a post-quantum world that window could be
 //! front-run, which is why the atomic flow above is the recommended path.)
 //!
+//! Accounts that keep their key elsewhere (Argent / Ready, Braavos) pass both keys in and
+//! prove they hold them: `proof` is a hybrid signature over
+//! `registration_hash(ecdsa_public_key, falcon_public_key)`, checked by the verifier after
+//! the keys are written, so a wrong key reverts the migration instead of locking the account.
+//!   Argent:  self.upgrade(this class, MigrationData) -> library call `perform_upgrade`
+//!   Braavos: multicall [ self.upgrade(this class), self.migrate(...) ]
+//!   Any account with a self-only `upgrade`: the Braavos-style multicall.
+//!
 //! EXPERIMENTAL AND UNAUDITED. Testnet / demo use only.
 
 use starknet::ClassHash;
+
+pub const REGISTER_DOMAIN: felt252 = 'starknet-pq-register-v1';
+
+/// `perform_upgrade` payload for Argent-style upgrades (`upgrade(class_hash, data)`).
+#[derive(Drop, Serde)]
+pub struct MigrationData {
+    pub ecdsa_public_key: felt252,
+    pub falcon_public_key: Array<felt252>,
+    pub verifier_class_hash: ClassHash,
+    pub proof: Array<felt252>,
+}
+
+/// Message the key-possession proof signs (ECDSA and Falcon over the same hash).
+pub fn registration_hash(ecdsa_public_key: felt252, falcon_public_key: Span<felt252>) -> felt252 {
+    let mut data = array![REGISTER_DOMAIN, ecdsa_public_key];
+    for felt in falcon_public_key {
+        data.append(*felt);
+    }
+    core::poseidon::poseidon_hash_span(data.span())
+}
 
 #[starknet::interface]
 pub trait IMigratable<TState> {
     fn register_falcon_public_key(
         ref self: TState, falcon_public_key: Array<felt252>, verifier_class_hash: ClassHash,
     );
+    fn migrate(
+        ref self: TState,
+        ecdsa_public_key: felt252,
+        falcon_public_key: Array<felt252>,
+        verifier_class_hash: ClassHash,
+        proof: Array<felt252>,
+    );
+    fn perform_upgrade(ref self: TState, new_implementation: ClassHash, data: Span<felt252>);
     fn rotate_falcon_public_key(ref self: TState, falcon_public_key: Array<felt252>);
     fn rotate_ecdsa_public_key(ref self: TState, ecdsa_public_key: felt252);
     fn set_verifier_class_hash(ref self: TState, verifier_class_hash: ClassHash);
@@ -53,8 +89,11 @@ pub mod HybridMigratableAccount {
     use starknet::{ClassHash, SyscallResultTrait, get_caller_address, get_contract_address};
     use crate::utils::execution;
     use crate::utils::interface::IHybridAccount;
+    use super::{MigrationData, registration_hash};
 
     pub const ONLY_SELF: felt252 = 'Migratable: only self';
+    pub const INVALID_PROOF: felt252 = 'Migratable: invalid key proof';
+    pub const INVALID_DATA: felt252 = 'Migratable: invalid data';
     pub const ALREADY_REGISTERED: felt252 = 'Migratable: already registered';
     pub const NOT_REGISTERED: felt252 = 'Migratable: not registered';
     pub const INVALID_FALCON_KEY: felt252 = 'Migratable: invalid falcon key';
@@ -177,6 +216,34 @@ pub mod HybridMigratableAccount {
             self._register(falcon_public_key, verifier_class_hash);
         }
 
+        /// Migration for accounts whose ECDSA key is not under `Account_public_key`
+        /// (Braavos-style multicall after `upgrade`). Both keys must be proven.
+        fn migrate(
+            ref self: ContractState,
+            ecdsa_public_key: felt252,
+            falcon_public_key: Array<felt252>,
+            verifier_class_hash: ClassHash,
+            proof: Array<felt252>,
+        ) {
+            self._assert_only_self();
+            assert(!self._falcon_registered(), ALREADY_REGISTERED);
+            self._migrate(ecdsa_public_key, falcon_public_key, verifier_class_hash, proof);
+        }
+
+        /// Argent upgrade callback, library-called by the old class's `upgrade`: replaces the
+        /// class and migrates in the same call. `data` is a serialized `MigrationData`.
+        fn perform_upgrade(
+            ref self: ContractState, new_implementation: ClassHash, data: Span<felt252>,
+        ) {
+            self._assert_only_self();
+            assert(!self._falcon_registered(), ALREADY_REGISTERED);
+            starknet::syscalls::replace_class_syscall(new_implementation).unwrap_syscall();
+            let mut data = data;
+            let m: MigrationData = Serde::deserialize(ref data).expect(INVALID_DATA);
+            assert(data.is_empty(), INVALID_DATA);
+            self._migrate(m.ecdsa_public_key, m.falcon_public_key, m.verifier_class_hash, m.proof);
+        }
+
         /// Replaces the Falcon key. Requires a hybrid-signed transaction (self-call).
         fn rotate_falcon_public_key(ref self: ContractState, falcon_public_key: Array<felt252>) {
             self._assert_only_self();
@@ -266,6 +333,22 @@ pub mod HybridMigratableAccount {
             }
             self.Migratable_verifier_class_hash.write(verifier_class_hash);
             self.emit(FalconKeyRegistered { verifier_class_hash });
+        }
+
+        /// Writes both keys, then requires a hybrid signature by them over the registration
+        /// hash, so an account cannot be migrated to keys its owner does not hold.
+        fn _migrate(
+            ref self: ContractState,
+            ecdsa_public_key: felt252,
+            falcon_public_key: Array<felt252>,
+            verifier_class_hash: ClassHash,
+            proof: Array<felt252>,
+        ) {
+            assert(ecdsa_public_key != 0, NO_ECDSA_KEY);
+            let message = registration_hash(ecdsa_public_key, falcon_public_key.span());
+            self.Account_public_key.write(ecdsa_public_key);
+            self._register(falcon_public_key, verifier_class_hash);
+            assert(self._verify(message, proof.span()), INVALID_PROOF);
         }
 
         /// Library-calls the verifier class's `is_valid_signature`, which reads the mirrored

@@ -1,7 +1,8 @@
 # starknet-pq-account
 
-Move an existing Starknet account to post-quantum signatures without changing its address or
-funds, back up both keys with one mnemonic, and sign from the browser.
+Move an existing Starknet account (OpenZeppelin, Argent / Ready, Braavos) to post-quantum
+signatures without changing its address or funds, back up both keys with one mnemonic, and sign
+from the browser.
 
 > **Experimental. Unaudited. Testnet only.** Do not hold real funds with these contracts.
 
@@ -31,9 +32,9 @@ in-place upgrade, the hybrid signature check, key backup and recovery, and brows
 
 | Piece | What it does |
 | --- | --- |
-| `HybridMigratableAccount` | Thin account class for in-place migration of an existing OpenZeppelin account. Keeps the OZ storage key `Account_public_key`, registers a Falcon key, and library-calls a declared verifier class. The verifier, the Falcon key and the ECDSA key can each be replaced later by a hybrid-signed self-call. |
+| `HybridMigratableAccount` | Thin account class for in-place migration of an existing account, and library-calls a declared verifier class. OpenZeppelin accounts keep their `Account_public_key`. Argent accounts migrate in one call through Argent's own `upgrade(class_hash, data)` callback (`perform_upgrade`); Braavos and other accounts use `[upgrade, migrate]` in one transaction. `migrate` and `perform_upgrade` require a hybrid signature by both new keys, so a wrong key reverts the migration instead of locking the account. The verifier, the Falcon key and the ECDSA key can each be replaced later by a hybrid-signed self-call. |
 | `HybridPoseidonAccount`, `HybridShakeAccount` | Full hybrid accounts, also used as verifier classes: a transaction passes only if BOTH a STARK-curve ECDSA signature and a Falcon-512 signature verify over the same hash. |
-| Key backup profile | One BIP39 mnemonic restores both keys. See [`contracts/docs/key-backup-v0.md`](contracts/docs/key-backup-v0.md). |
+| Key backup profile | One BIP39 mnemonic restores both keys. For an Argent X / Ready account, the classical key follows Argent's own derivation (checked against argent-x test vectors), so the words the user already has restore the current key and the new Falcon key. See [`contracts/docs/key-backup-v0.md`](contracts/docs/key-backup-v0.md). |
 | Browser signer | Falcon-512 signing in the browser with [@noble/post-quantum](https://github.com/paulmillr/noble-post-quantum) (pure JS), converted by `signer/falcon_adapter.mjs` into the layout of the standard SHAKE-256 on-chain verifier. Demo page: [`docs/index.html`](docs/index.html). |
 | Passkey lock | After one restore from the words, the page can lock the 64-byte seed with a passkey: AES-GCM under a key derived (HKDF-SHA256) from the passkey's WebAuthn PRF output, stored in that browser only. Later visits unlock with Face ID, fingerprint, Windows Hello or a security key; the words stay the backup. |
 | Demo scripts | Sepolia scripts for deployment, migration, negative tests, backup/recovery and the browser path (`signer/`). |
@@ -57,6 +58,18 @@ The two calls run in one transaction, so there is no moment where the account is
 unprotected. If an account is upgraded without registering a key, it only accepts a single
 ECDSA-signed `register_falcon_public_key` self-call.
 
+Other wallets keep the classical key under their own storage, so the key is passed in together
+with a proof that the owner holds both keys:
+
+| Wallet | Migration transaction, signed with the wallet's current key |
+| --- | --- |
+| Argent / Ready (0.4+ by code reading; tested on 0.5.0) | `upgrade(HybridMigratableAccount, MigrationData)`: Argent checks SRC6 on the new class and library-calls its `perform_upgrade`, which replaces the class and registers both keys in the same call |
+| Braavos | `[upgrade(HybridMigratableAccount), migrate(ecdsa_key, falcon_key, verifier, proof)]` |
+
+`proof` is a hybrid signature over `poseidon(["starknet-pq-register-v1", ecdsa_key, ...falcon_key])`.
+It is checked by the verifier after the keys are written; if it fails, the whole transaction
+reverts and the old account stays as it was.
+
 ## Threat model
 
 | Threat | Covered | How |
@@ -79,6 +92,10 @@ Gas measured on Sepolia, priced with the latest Starknet mainnet block on 2026-1
 | Migrated hybrid account, Poseidon Falcon verifier | 15.8M | 0.18 STRK, about $0.014 |
 | Migrated hybrid account, standard SHAKE-256 verifier (browser path) | 53.9M | 0.61 STRK, about $0.047 |
 
+The migration itself is a one-time transaction. With the key-possession proof checked by the
+SHAKE-256 verifier it used 70.4M L2 gas (Argent) and 74.5M (Braavos) on Sepolia, about 0.8 STRK
+or $0.06 at the same mainnet prices.
+
 Reproduce with `node signer/mainnet_cost.mjs`.
 
 ## Results on Starknet Sepolia
@@ -92,9 +109,18 @@ Reproduce with `node signer/mainnet_cost.mjs`.
 | Account migrated with the standard SHAKE-256 verifier | [0x32e8ca84…](https://sepolia.voyager.online/tx/0x32e8ca84a51b8c78ca2a625723ee2dc60aae771da6b8ce4e1ad99bbbaccfcdb) |
 | Transfer signed in a browser (ECDSA + noble Falcon-512) | [0x75c5bffb…](https://sepolia.voyager.online/tx/0x75c5bffb108e430df5cb92f3b79ba22e419a1be5a75f231bfc15289b965dd80) |
 | Public demo account migrated (class with key rotation) | [0x63b59d1c…](https://sepolia.voyager.online/tx/0x63b59d1cf42250241f1c855e633ab359b6a9b5fc1fd3b8c02c0d9a2ce3962c) |
+| Argent 0.5.0 account migrated in one call (`upgrade` → `perform_upgrade`) | [0x4a4d508f…](https://sepolia.voyager.online/tx/0x4a4d508ff51b0c64dbb7d4c779974b83835cfd12c6e782e277ed37233ee9d43) |
+| Hybrid-signed transfer from the migrated Argent account | [0x15cae4b1…](https://sepolia.voyager.online/tx/0x15cae4b1c075e0769bb0480f4c8bbe1fc3cd46f459ae304ab80db1cadf57a91) |
+| Braavos account migrated (`[upgrade, migrate]`) | [0x5ad0f10b…](https://sepolia.voyager.online/tx/0x5ad0f10bc956238502f45b420e00b82e87ba0fa58374b0767acfbfd6df3e908) |
+| Hybrid-signed transfer from the migrated Braavos account | [0x1d8a44b1…](https://sepolia.voyager.online/tx/0x1d8a44b12bb51a2b5f74f2af21a1b623ed3c94a9d199a363e7137a2fb234c24) |
 
 - Migrated account [`0x54370be5…4c41`](https://sepolia.voyager.online/contract/0x54370be5a940849f13c01f269d95d06c57d15495da594f3e01dfb6eebdb4c41):
   balance before 3.974179 STRK, after 3.750300 STRK; the difference equals the migration fee exactly.
+- Argent [`0x61228909…023a`](https://sepolia.voyager.online/contract/0x61228909093cb162adc6e487f816a5c5845b219341914bf1ae0b4894c80023a)
+  and Braavos [`0x2d21d503…2c43`](https://sepolia.voyager.online/contract/0x2d21d503e80d0725042bde6c2e9be84fad2c7f951e86628f263cc918e2b2c43)
+  accounts were deployed from fresh words with each wallet's derivation, then migrated. After
+  migration the stored classical and Falcon keys equal the keys derived from those words, and
+  each balance dropped by exactly the migration fee.
 - ECDSA-only transfers from migrated accounts are rejected in `__validate__`.
 - Declaring the thin migratable class costs about 4 STRK on Sepolia, against about 51 STRK for a
   full hybrid class, because verification is shared through a library call.
@@ -125,8 +151,13 @@ Account: [`0x343e3df5…c0db`](https://sepolia.voyager.online/contract/0x343e3df
 
 - Unaudited. The Poseidon Falcon variant uses a Poseidon hash-to-point (cheap, non-standard); the
   SHAKE-256 variant follows the standard and costs about 3.4x the gas.
-- After migration, OpenZeppelin extras such as SRC-9 outside execution (paymasters, session keys)
-  are not available yet.
+- After migration, wallet extras such as SRC-9 outside execution (paymasters, session keys),
+  Argent guardians and escapes, and Braavos hardware signers, daily withdrawal limits and
+  sessions are not available yet.
+- Wallet migrations were tested on accounts with a single STARK key. An Argent account with a
+  guardian needs the guardian's co-signature on the upgrade; multisig and hardware-signer
+  accounts are not covered.
+- The Braavos key derivation matches third-party scripts, not published Braavos code.
 - The passkey lock needs the WebAuthn PRF extension. Support differs by device, browser and
   password manager; it was tested with a Chromium virtual authenticator, not yet across real
   devices. Hardware wallet signing is open.
@@ -143,7 +174,7 @@ commit `5145a818c9512b4a443507d3375e75dae3076af6`.
 ```sh
 cd contracts
 scarb build
-scarb cairo-test          # 38 tests
+scarb cairo-test          # 49 tests
 
 cd ../signer
 npm install
@@ -157,6 +188,8 @@ node browser_signer_check.mjs   # offline: noble signature vs Python vs Cairo fi
 node browser_setup.mjs  # SHAKE verifier + account for the browser demo (docs/index.html)
 node mainnet_cost.mjs   # fee per transfer at current mainnet prices
 node passkey_e2e.mjs    # demo page + virtual passkey: lock, reload, unlock, send (Chromium)
+node wallet_profiles_check.mjs  # offline: Argent X derivation vs argent-x test vectors
+node wallet_migrate_demo.mjs    # deploy and migrate real Argent 0.5.0 and Braavos accounts
 ```
 
 ## Credits

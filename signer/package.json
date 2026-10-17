@@ -11,7 +11,10 @@
     "migrate": "node migrate_demo.mjs",
     "backup": "node backup_demo.mjs",
     "browser-check": "node browser_signer_check.mjs",
-    "browser-setup": "node browser_setup.mjs"
+    "browser-setup": "node browser_setup.mjs",
+    "wallet-profiles": "node wallet_profiles_check.mjs",
+    "wallet-fixture": "node migration_fixture.mjs",
+    "wallets": "node wallet_migrate_demo.mjs"
   },
   "dependencies": {
     "@noble/hashes": "1.6.1",
