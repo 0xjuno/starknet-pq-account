@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "starknet-pq-account-signer",
   "version": "0.1.0",
   "private": true,
@@ -16,7 +16,9 @@
     "wallet-fixture": "node migration_fixture.mjs",
     "wallets": "node wallet_migrate_demo.mjs",
     "survey": "node mainnet_survey.mjs 400",
-    "btc-coverage": "node btc_staking_coverage.mjs"
+    "btc-coverage": "node btc_staking_coverage.mjs",
+    "storage-check": "node storage_collision_check.mjs",
+    "kit-check": "node kit_safety_check.mjs"
   },
   "dependencies": {
     "@noble/hashes": "1.6.1",

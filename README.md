@@ -93,6 +93,29 @@ reverts and the old account stays as it was.
 | Bridges (StarkGate, BTC wrappers), Ethereum settlement, data availability | No | Outside the account; see StarkWare's migration register. |
 | Bugs in this code | No | Unaudited. Testnet only. |
 
+## Security notes
+
+Known risks, to be covered by a review before any mainnet use:
+
+- Protections a wallet set up are not carried over: Argent guardians (recovery and escape),
+  Braavos daily withdrawal limits and hardware signers, session keys and outside execution.
+  `inspectAccount` lists them in `drops`, and `migrationCalls` refuses to build the transaction
+  unless the caller passes `acceptDroppedProtections: true` after showing them to the user.
+- The Falcon-512 verifier (OpenZeppelin cairo-pq-verifiers) is unaudited. The hybrid check keeps
+  ECDSA as a second gate.
+- The demo page derives and holds keys in page memory, so a compromised page leaks them.
+  Production signing belongs inside a wallet.
+- Falcon signing is hard to make constant-time, and the JavaScript signer has not been reviewed
+  for side channels.
+- If a wallet calls `upgrade` without `migrate` in the same transaction, the account waits in a
+  bootstrap state that accepts one ECDSA-signed key registration; once ECDSA is broken, that call
+  could be front-run. The kit always puts both calls in one transaction.
+- The storage slots the class writes (`ecdsa_public_key`, `falcon_public_key`,
+  `Migratable_verifier_class_hash`) were empty on 48 mainnet accounts across 14 wallet classes
+  (`signer/storage_collision_check.mjs`), and `inspectAccount` checks them again before every
+  migration.
+- `recovery/` is research code and is not zero-knowledge. Never run it on a real seed.
+
 ## Cost on mainnet
 
 Gas measured on Sepolia, priced with the latest Starknet mainnet block on 2026-10-16

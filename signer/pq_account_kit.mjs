@@ -41,9 +41,16 @@ export function migrationArgs(keys, verifierClass) {
   return [keys.ecdsaPublicKey, num.toHex(keys.falconFelts.length), ...keys.falconFelts, verifierClass, num.toHex(proof.length), ...proof];
 }
 
-/** The calls to sign with the account's CURRENT key. Throws if inspectAccount said no. */
-export function migrationCalls(info, keys, { migratableClass, verifierClass }) {
+/**
+ * The calls to sign with the account's CURRENT key. Throws if inspectAccount said no, or if the
+ * migration would remove protections the user set up (info.drops) and the caller has not passed
+ * acceptDroppedProtections: true after showing them to the user.
+ */
+export function migrationCalls(info, keys, { migratableClass, verifierClass, acceptDroppedProtections = false }) {
   if (!info.migratable) throw new Error(`not migratable: ${info.reason}`);
+  if (info.drops?.length && !acceptDroppedProtections) {
+    throw new Error(`migration removes: ${info.drops.join("; ")}. Show this to the user and pass acceptDroppedProtections: true to continue.`);
+  }
   const args = migrationArgs(keys, verifierClass);
   if (info.kind === "argent") {
     // Argent's upgrade(class, data) checks SRC6 and library-calls perform_upgrade (0.4+) or,
@@ -73,6 +80,18 @@ function abiFunctions(abi) {
 
 const view = async (provider, address, entrypoint) =>
   (await provider.callContract({ contractAddress: address, entrypoint, calldata: [] }, "latest")).map((x) => BigInt(x));
+
+// Storage the migratable class writes. Before migration these must be empty (an OpenZeppelin
+// account's Account_public_key is the key being kept, so it is not checked).
+const MIGRATION_SLOTS = ["ecdsa_public_key", "falcon_public_key", "Migratable_verifier_class_hash"].map((n) => [n, hash.starknetKeccak(n)]);
+async function usedMigrationSlots(provider, address) {
+  const used = [];
+  for (const [name, slot] of MIGRATION_SLOTS) {
+    const r = await provider.getStorageAt(address, num.toHex(slot), "latest");
+    if (BigInt(typeof r === "object" ? r.value : r) !== 0n) used.push(name);
+  }
+  return used;
+}
 const shortStr = (x) => { try { return shortString.decodeShortString(num.toHex(x)); } catch { return num.toHex(x); } };
 
 /** Wallet family of a class, from its ABI (one RPC call per class, cached). */
@@ -117,11 +136,12 @@ const atLeast = (v, min) => {
 /**
  * Which wallet the account is and whether this kit can migrate it today.
  * needs: extra signatures the migration transaction requires besides the owner key.
+ * drops: protections the user set up that the hybrid account does not keep.
  */
 export async function inspectAccount(provider, address) {
   const classHash = num.toHex(await provider.getClassHashAt(address, "latest"));
   const c = await classifyClass(provider, classHash, address);
-  const info = { address, classHash, kind: c.kind, version: c.version, migratable: false, needs: [], reason: "" };
+  const info = { address, classHash, kind: c.kind, version: c.version, migratable: false, needs: [], drops: [], reason: "" };
   switch (c.kind) {
     case "pq-hybrid":
       info.reason = "already a hybrid account";
@@ -136,7 +156,10 @@ export async function inspectAccount(provider, address) {
       const guardians = await view(provider, address, "get_guardians_guids")
         .then((r) => r[0])
         .catch(() => view(provider, address, "get_guardian").then((r) => (r[0] === 0n ? 0n : 1n)));
-      if (guardians !== 0n) info.needs.push("guardian co-signature");
+      if (guardians !== 0n) {
+        info.needs.push("guardian co-signature");
+        info.drops.push("Argent guardian (account recovery and escape)");
+      }
       info.migratable = true;
       break;
     }
@@ -147,7 +170,11 @@ export async function inspectAccount(provider, address) {
       if (nStark !== 1) info.reason = `Braavos with ${nStark} STARK signers`;
       else if (nSecp + nWebauthn > 0) info.reason = "Braavos with a hardware or passkey signer (would be dropped)";
       else if (threshold !== 0n) info.reason = "Braavos multisig";
-      else info.migratable = true;
+      else {
+        info.migratable = true;
+        const limit = await view(provider, address, "get_withdrawal_limit_low").catch(() => [0n]);
+        if (limit[0] !== 0n) info.drops.push("Braavos daily withdrawal limit");
+      }
       break;
     }
     case "openzeppelin":
@@ -158,6 +185,13 @@ export async function inspectAccount(provider, address) {
       break;
     default:
       info.reason = `${c.kind} account`;
+  }
+  if (info.migratable) {
+    const used = await usedMigrationSlots(provider, address);
+    if (used.length) {
+      info.migratable = false;
+      info.reason = `storage the migration writes is already in use: ${used.join(", ")}`;
+    }
   }
   return info;
 }
