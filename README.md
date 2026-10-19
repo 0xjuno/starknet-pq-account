@@ -1,5 +1,7 @@
 # starknet-pq-account
 
+[![tests](https://github.com/0xjuno/starknet-pq-account/actions/workflows/ci.yml/badge.svg)](https://github.com/0xjuno/starknet-pq-account/actions/workflows/ci.yml)
+
 Move an existing Starknet account (OpenZeppelin, Argent / Ready, Braavos) to post-quantum
 signatures without changing its address or funds, back up both keys with one mnemonic, and sign
 from the browser.

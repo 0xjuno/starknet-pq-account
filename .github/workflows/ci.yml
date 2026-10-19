@@ -1,0 +1,35 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: software-mansion/setup-scarb@v1
+        with:
+          scarb-version: "2.18.0"
+      - name: Build
+        working-directory: contracts
+        run: scarb build
+      - name: Test
+        working-directory: contracts
+        run: scarb cairo-test
+
+  recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: software-mansion/setup-scarb@v1
+        with:
+          scarb-version: "2.18.0"
+      - name: Test
+        working-directory: recovery
+        run: scarb cairo-test
+      - name: Execute (Braavos profile, public test mnemonic)
+        working-directory: recovery
+        run: scarb execute --arguments-file args/braavos.json --print-program-output --print-resource-usage --target bootloader --output none
