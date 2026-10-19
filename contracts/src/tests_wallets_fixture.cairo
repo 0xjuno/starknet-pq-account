@@ -6,7 +6,8 @@ pub const ECDSA_PK: felt252 = 0x4d9deecfd399968f3b2be61e91bb98cfa7d7c420f70af43d
 pub const REGISTRATION_HASH: felt252 = 0x6e2f1083db9a974d62be1c11151f433417c03470e3cadaccd51965f059e97a4;
 pub const ECDSA_R: felt252 = 0x1e23c97545c8993e013534e37e3f11e1b2c27da21f709edd4a2b59e8f86b90d;
 pub const ECDSA_S: felt252 = 0x30a65d95928cfd55b2a0464ad790d3e2d66d56f5e624dc18d485e013cb74036;
-/// ECDSA signature over the same hash by a different key.
+/// A different key and its ECDSA signature over the same hash.
+pub const WRONG_ECDSA_PK: felt252 = 0x101dd3c09b7dd6b567cb9971fe50738e974e739c18602bde05a24a6ccae5b7f;
 pub const WRONG_ECDSA_R: felt252 = 0x3af11e849955dc6095a3ec72fdd22c540e1e239cdac96b4f28f80843e3d84d;
 pub const WRONG_ECDSA_S: felt252 = 0x51c651ccf956afdb41b041150fae34b255d4566a6036fa23ba099c06449e9bf;
 

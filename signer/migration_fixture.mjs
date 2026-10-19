@@ -35,7 +35,8 @@ pub const ECDSA_PK: felt252 = ${ecdsaPub};
 pub const REGISTRATION_HASH: felt252 = ${num.toHex(message)};
 pub const ECDSA_R: felt252 = ${num.toHex(e.r)};
 pub const ECDSA_S: felt252 = ${num.toHex(e.s)};
-/// ECDSA signature over the same hash by a different key.
+/// A different key and its ECDSA signature over the same hash.
+pub const WRONG_ECDSA_PK: felt252 = ${num.toHex(ec.starkCurve.getStarkKey(otherPriv))};
 pub const WRONG_ECDSA_R: felt252 = ${num.toHex(bad.r)};
 pub const WRONG_ECDSA_S: felt252 = ${num.toHex(bad.s)};
 

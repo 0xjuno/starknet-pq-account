@@ -1,30 +1,41 @@
 //! In-place migration tests: an OpenZeppelin-style ECDSA account upgrades to
-//! `HybridMigratableAccount` at the SAME address, keeps its ECDSA key, registers a Falcon
-//! key, and from then on only accepts hybrid (ECDSA + Falcon) signatures.
+//! `HybridMigratableAccount` at the SAME address, migrates with a key-possession proof, and
+//! from then on only accepts hybrid (ECDSA + Falcon) signatures.
+//!
+//! Keys, proof and signatures come from the wallet fixture: the proof is a hybrid signature
+//! over REGISTRATION_HASH, so the same hash and signature also serve as a signed "transaction".
 
-use pqbench_falcon_512::fixtures::poseidon;
 use starknet::account::Call;
 use starknet::syscalls::deploy_syscall;
-use starknet::{ContractAddress, SyscallResultTrait};
-use crate::hybrid::HybridPoseidonAccount;
+use starknet::{ClassHash, ContractAddress, SyscallResultTrait};
+use crate::hybrid::HybridShakeAccount;
 use crate::migratable::LegacyOzLikeAccount::{ILegacyDispatcher, ILegacyDispatcherTrait};
 use crate::migratable::{
     HybridMigratableAccount, IMigratableDispatcher, IMigratableDispatcherTrait,
     LegacyOzLikeAccount,
 };
+use crate::tests_wallets_fixture::{
+    ECDSA_PK, ECDSA_R, ECDSA_S, REGISTRATION_HASH, WRONG_ECDSA_PK, WRONG_ECDSA_R, WRONG_ECDSA_S,
+    falcon_pk, falcon_sig,
+};
 use crate::utils::interface::{IHybridAccountDispatcher, IHybridAccountDispatcherTrait};
 
-// Same test-only STARK-curve ECDSA fixture as tests.cairo (signs poseidon::msg()).
-const ECDSA_PK: felt252 = 0x1da8f79d6fd8ef4fb1b9afe8e861eb80b82ec0b022aa28220dad045dc9328a4;
-const ECDSA_R: felt252 = 0x3b87908dab2a2c41cd7010c605f6d4aac97108e200e4c8838e1b465db549994;
-const ECDSA_S: felt252 = 0x409708fbae771c0d93735659703ededebeb7c20a57226788b2b83d97646826d;
+const MSG: felt252 = REGISTRATION_HASH;
 
-fn hybrid_sig() -> Array<felt252> {
-    let mut sig = array![ECDSA_R, ECDSA_S];
-    for f in poseidon::signature() {
+fn verifier() -> ClassHash {
+    HybridShakeAccount::TEST_CLASS_HASH.try_into().unwrap()
+}
+
+fn sig_with(r: felt252, s: felt252) -> Array<felt252> {
+    let mut sig = array![r, s];
+    for f in falcon_sig() {
         sig.append(f);
     }
     sig
+}
+
+fn hybrid_sig() -> Array<felt252> {
+    sig_with(ECDSA_R, ECDSA_S)
 }
 
 fn tamper(mut sig: Array<felt252>, index: u32) -> Array<felt252> {
@@ -49,21 +60,21 @@ fn deploy_legacy() -> ContractAddress {
     address
 }
 
-/// Runs the recommended atomic flow as self-calls: upgrade, then register.
-fn migrate(address: ContractAddress) {
-    starknet::testing::set_contract_address(address);
-    ILegacyDispatcher { contract_address: address }
-        .upgrade(HybridMigratableAccount::TEST_CLASS_HASH.try_into().unwrap());
-    IMigratableDispatcher { contract_address: address }
-        .register_falcon_public_key(
-            poseidon::public_key(), HybridPoseidonAccount::TEST_CLASS_HASH.try_into().unwrap(),
-        );
-}
-
 fn upgrade_only(address: ContractAddress) {
     starknet::testing::set_contract_address(address);
     ILegacyDispatcher { contract_address: address }
         .upgrade(HybridMigratableAccount::TEST_CLASS_HASH.try_into().unwrap());
+}
+
+/// The recommended atomic flow as self-calls: upgrade, then migrate with the proof.
+fn migrate(address: ContractAddress) {
+    upgrade_only(address);
+    IMigratableDispatcher { contract_address: address }
+        .migrate(ECDSA_PK, falcon_pk(), verifier(), hybrid_sig());
+}
+
+fn outsider() -> ContractAddress {
+    0x1234.try_into().unwrap()
 }
 
 #[test]
@@ -74,10 +85,8 @@ fn migration_keeps_address_and_ecdsa_key() {
     let m = IMigratableDispatcher { contract_address: address };
     assert_eq!(m.get_ecdsa_public_key(), ECDSA_PK);
     assert!(m.is_falcon_registered());
-    assert_eq!(m.get_falcon_public_key(), poseidon::public_key());
-    assert_eq!(
-        m.get_verifier_class_hash(), HybridPoseidonAccount::TEST_CLASS_HASH.try_into().unwrap(),
-    );
+    assert_eq!(m.get_falcon_public_key(), falcon_pk());
+    assert_eq!(m.get_verifier_class_hash(), verifier());
 }
 
 #[test]
@@ -85,7 +94,7 @@ fn migrated_account_accepts_hybrid_signature() {
     let address = deploy_legacy();
     migrate(address);
     let account = IHybridAccountDispatcher { contract_address: address };
-    assert_eq!(account.is_valid_signature(poseidon::msg(), hybrid_sig()), starknet::VALIDATED);
+    assert_eq!(account.is_valid_signature(MSG, hybrid_sig()), starknet::VALIDATED);
 }
 
 #[test]
@@ -93,7 +102,7 @@ fn migrated_account_rejects_ecdsa_only() {
     let address = deploy_legacy();
     migrate(address);
     let account = IHybridAccountDispatcher { contract_address: address };
-    assert_eq!(account.is_valid_signature(poseidon::msg(), array![ECDSA_R, ECDSA_S]), 0);
+    assert_eq!(account.is_valid_signature(MSG, array![ECDSA_R, ECDSA_S]), 0);
 }
 
 #[test]
@@ -101,7 +110,7 @@ fn migrated_account_rejects_forged_ecdsa_with_bad_falcon() {
     let address = deploy_legacy();
     migrate(address);
     let account = IHybridAccountDispatcher { contract_address: address };
-    assert_eq!(account.is_valid_signature(poseidon::msg(), tamper(hybrid_sig(), 2 + 29)), 0);
+    assert_eq!(account.is_valid_signature(MSG, tamper(hybrid_sig(), 2 + 29)), 0);
 }
 
 #[test]
@@ -109,7 +118,7 @@ fn migrated_validate_accepts_hybrid_transaction() {
     let address = deploy_legacy();
     migrate(address);
     let account = IHybridAccountDispatcher { contract_address: address };
-    starknet::testing::set_transaction_hash(poseidon::msg());
+    starknet::testing::set_transaction_hash(MSG);
     starknet::testing::set_signature(hybrid_sig().span());
     assert_eq!(account.__validate__(array![]), starknet::VALIDATED);
 }
@@ -120,45 +129,62 @@ fn migrated_validate_rejects_ecdsa_only_transaction() {
     let address = deploy_legacy();
     migrate(address);
     let account = IHybridAccountDispatcher { contract_address: address };
-    starknet::testing::set_transaction_hash(poseidon::msg());
+    starknet::testing::set_transaction_hash(MSG);
     starknet::testing::set_signature(array![ECDSA_R, ECDSA_S].span());
     account.__validate__(array![]);
 }
 
 #[test]
 #[should_panic]
-fn register_twice_fails() {
+fn migrate_twice_fails() {
     let address = deploy_legacy();
     migrate(address);
     IMigratableDispatcher { contract_address: address }
-        .register_falcon_public_key(
-            poseidon::public_key(), HybridPoseidonAccount::TEST_CLASS_HASH.try_into().unwrap(),
-        );
+        .migrate(ECDSA_PK, falcon_pk(), verifier(), hybrid_sig());
 }
 
 #[test]
 #[should_panic]
-fn register_from_outsider_fails() {
+fn migrate_from_outsider_fails() {
     let address = deploy_legacy();
     upgrade_only(address);
-    starknet::testing::set_contract_address(0x1234.try_into().unwrap());
+    starknet::testing::set_contract_address(outsider());
     IMigratableDispatcher { contract_address: address }
-        .register_falcon_public_key(
-            poseidon::public_key(), HybridPoseidonAccount::TEST_CLASS_HASH.try_into().unwrap(),
-        );
+        .migrate(ECDSA_PK, falcon_pk(), verifier(), hybrid_sig());
 }
 
 #[test]
-fn bootstrap_accepts_ecdsa_only_register_call() {
+#[should_panic]
+fn migrate_without_valid_proof_fails() {
+    let address = deploy_legacy();
+    upgrade_only(address);
+    IMigratableDispatcher { contract_address: address }
+        .migrate(ECDSA_PK, falcon_pk(), verifier(), sig_with(WRONG_ECDSA_R, WRONG_ECDSA_S));
+}
+
+#[test]
+fn bootstrap_accepts_ecdsa_only_migrate_call() {
     let address = deploy_legacy();
     upgrade_only(address);
     let account = IHybridAccountDispatcher { contract_address: address };
-    starknet::testing::set_transaction_hash(poseidon::msg());
+    starknet::testing::set_transaction_hash(MSG);
+    starknet::testing::set_signature(array![ECDSA_R, ECDSA_S].span());
+    let call = Call { to: address, selector: selector!("migrate"), calldata: array![].span() };
+    assert_eq!(account.__validate__(array![call]), starknet::VALIDATED);
+}
+
+#[test]
+#[should_panic]
+fn bootstrap_rejects_the_removed_register_call() {
+    let address = deploy_legacy();
+    upgrade_only(address);
+    let account = IHybridAccountDispatcher { contract_address: address };
+    starknet::testing::set_transaction_hash(MSG);
     starknet::testing::set_signature(array![ECDSA_R, ECDSA_S].span());
     let call = Call {
         to: address, selector: selector!("register_falcon_public_key"), calldata: array![].span(),
     };
-    assert_eq!(account.__validate__(array![call]), starknet::VALIDATED);
+    account.__validate__(array![call]);
 }
 
 #[test]
@@ -167,35 +193,27 @@ fn bootstrap_rejects_any_other_call() {
     let address = deploy_legacy();
     upgrade_only(address);
     let account = IHybridAccountDispatcher { contract_address: address };
-    starknet::testing::set_transaction_hash(poseidon::msg());
+    starknet::testing::set_transaction_hash(MSG);
     starknet::testing::set_signature(array![ECDSA_R, ECDSA_S].span());
     let call = Call { to: address, selector: selector!("transfer"), calldata: array![].span() };
     account.__validate__(array![call]);
-}
-
-// Second test-only key: STARK key of 0x5eed..02 and its signature over poseidon::msg().
-const ECDSA_PK_2: felt252 = 0x1752840a181ce4108bf90d399aaca68c049b6f4c21ab9df838e250d03146d6d;
-const ECDSA_R_2: felt252 = 0x262d03f1bd612441e7bcf7971e9ca52050d29eabef28499253bf71be6afc061;
-const ECDSA_S_2: felt252 = 0x25900bff3c8ce0539fd09fbe16f2d388189c1a14daa0403b91a1cb0949cdec3;
-
-fn outsider() -> ContractAddress {
-    0x1234.try_into().unwrap()
 }
 
 #[test]
 fn rotate_ecdsa_key_switches_the_classical_key() {
     let address = deploy_legacy();
     migrate(address);
-    IMigratableDispatcher { contract_address: address }.rotate_ecdsa_public_key(ECDSA_PK_2);
+    IMigratableDispatcher { contract_address: address }.rotate_ecdsa_public_key(WRONG_ECDSA_PK);
     let account = IHybridAccountDispatcher { contract_address: address };
     // The old ECDSA half no longer verifies, the new one does (Falcon half unchanged).
-    assert_eq!(account.is_valid_signature(poseidon::msg(), hybrid_sig()), 0);
-    let mut sig = array![ECDSA_R_2, ECDSA_S_2];
-    for f in poseidon::signature() {
-        sig.append(f);
-    }
-    assert_eq!(account.is_valid_signature(poseidon::msg(), sig), starknet::VALIDATED);
-    assert_eq!(IMigratableDispatcher { contract_address: address }.get_ecdsa_public_key(), ECDSA_PK_2);
+    assert_eq!(account.is_valid_signature(MSG, hybrid_sig()), 0);
+    assert_eq!(
+        account.is_valid_signature(MSG, sig_with(WRONG_ECDSA_R, WRONG_ECDSA_S)),
+        starknet::VALIDATED,
+    );
+    assert_eq!(
+        IMigratableDispatcher { contract_address: address }.get_ecdsa_public_key(), WRONG_ECDSA_PK,
+    );
 }
 
 #[test]
@@ -204,7 +222,7 @@ fn rotate_ecdsa_key_from_outsider_fails() {
     let address = deploy_legacy();
     migrate(address);
     starknet::testing::set_contract_address(outsider());
-    IMigratableDispatcher { contract_address: address }.rotate_ecdsa_public_key(ECDSA_PK_2);
+    IMigratableDispatcher { contract_address: address }.rotate_ecdsa_public_key(WRONG_ECDSA_PK);
 }
 
 #[test]
@@ -220,7 +238,7 @@ fn rotate_ecdsa_key_to_zero_fails() {
 fn rotate_ecdsa_key_before_registration_fails() {
     let address = deploy_legacy();
     upgrade_only(address);
-    IMigratableDispatcher { contract_address: address }.rotate_ecdsa_public_key(ECDSA_PK_2);
+    IMigratableDispatcher { contract_address: address }.rotate_ecdsa_public_key(WRONG_ECDSA_PK);
 }
 
 #[test]
@@ -229,8 +247,7 @@ fn set_verifier_from_outsider_fails() {
     let address = deploy_legacy();
     migrate(address);
     starknet::testing::set_contract_address(outsider());
-    IMigratableDispatcher { contract_address: address }
-        .set_verifier_class_hash(HybridPoseidonAccount::TEST_CLASS_HASH.try_into().unwrap());
+    IMigratableDispatcher { contract_address: address }.set_verifier_class_hash(verifier());
 }
 
 #[test]
@@ -247,19 +264,18 @@ fn upgrade_from_outsider_fails() {
     let address = deploy_legacy();
     migrate(address);
     starknet::testing::set_contract_address(outsider());
-    IMigratableDispatcher { contract_address: address }
-        .upgrade(HybridPoseidonAccount::TEST_CLASS_HASH.try_into().unwrap());
+    IMigratableDispatcher { contract_address: address }.upgrade(verifier());
 }
 
 #[test]
 #[should_panic]
-fn register_short_falcon_key_fails() {
+fn migrate_with_short_falcon_key_fails() {
     let address = deploy_legacy();
     upgrade_only(address);
-    let mut key = poseidon::public_key();
+    let mut key = falcon_pk();
     let _ = key.pop_front();
     IMigratableDispatcher { contract_address: address }
-        .register_falcon_public_key(key, HybridPoseidonAccount::TEST_CLASS_HASH.try_into().unwrap());
+        .migrate(ECDSA_PK, key, verifier(), hybrid_sig());
 }
 
 #[test]
@@ -267,7 +283,7 @@ fn register_short_falcon_key_fails() {
 fn rotate_short_falcon_key_fails() {
     let address = deploy_legacy();
     migrate(address);
-    let mut key = poseidon::public_key();
+    let mut key = falcon_pk();
     let _ = key.pop_front();
     IMigratableDispatcher { contract_address: address }.rotate_falcon_public_key(key);
 }
@@ -278,7 +294,7 @@ fn tampered_falcon_hint_is_rejected() {
     migrate(address);
     let account = IHybridAccountDispatcher { contract_address: address };
     // Index 2 + 31 + 5 falls inside the multiplication hint (s2 * h).
-    assert_eq!(account.is_valid_signature(poseidon::msg(), tamper(hybrid_sig(), 2 + 31 + 5)), 0);
+    assert_eq!(account.is_valid_signature(MSG, tamper(hybrid_sig(), 2 + 31 + 5)), 0);
 }
 
 #[test]
@@ -295,7 +311,7 @@ fn truncated_signature_is_rejected() {
         }
         i += 1;
     }
-    assert_eq!(account.is_valid_signature(poseidon::msg(), short), 0);
+    assert_eq!(account.is_valid_signature(MSG, short), 0);
 }
 
 #[test]
@@ -304,12 +320,12 @@ fn falcon_key_rotation_takes_effect() {
     migrate(address);
     // Rotate to a different (valid-length) key: the old Falcon signature must stop verifying.
     let mut other = array![];
-    for f in poseidon::public_key() {
+    for f in falcon_pk() {
         other.append(f + 1);
     }
     IMigratableDispatcher { contract_address: address }.rotate_falcon_public_key(other);
     let account = IHybridAccountDispatcher { contract_address: address };
-    assert_eq!(account.is_valid_signature(poseidon::msg(), hybrid_sig()), 0);
+    assert_eq!(account.is_valid_signature(MSG, hybrid_sig()), 0);
 }
 
 #[test]
@@ -317,5 +333,5 @@ fn unregistered_account_signature_check_returns_zero() {
     let address = deploy_legacy();
     upgrade_only(address);
     let account = IHybridAccountDispatcher { contract_address: address };
-    assert_eq!(account.is_valid_signature(poseidon::msg(), hybrid_sig()), 0);
+    assert_eq!(account.is_valid_signature(MSG, hybrid_sig()), 0);
 }

@@ -11,6 +11,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { deriveAccountKeys } from "./pq_keys.mjs";
 import { makeNtt, publicKeyFelts, signatureFelts, signTxHash } from "./falcon_adapter.mjs";
 import { KEYS, PAGE_CONFIG, ROOTS, RPC, TARGET } from "./config.mjs";
+import { registrationHash } from "./pq_account_kit.mjs";
 
 const STATE_FILE = `${KEYS}/browser-state.json`;
 const MNEMONIC_FILE = `${KEYS}/browser-mnemonic.txt`;
@@ -87,9 +88,9 @@ async function main() {
   state.address = address; save();
   log("account:", address);
   if (!(await classAt(address))) {
-    if ((await strkBalance(address)) < 2n * 10n ** 18n) {
+    if ((await strkBalance(address)) < 8n * 10n ** 18n) {
       const nonce = await provider.getNonceForAddress(deployerAddress, "latest");
-      const t = await deployerAcc.execute(transferCall(address, 3n * 10n ** 18n), { nonce, tip: 0n });
+      const t = await deployerAcc.execute(transferCall(address, 9n * 10n ** 18n), { nonce, tip: 0n });
       await provider.waitForTransaction(t.transaction_hash);
     }
     const oz = new Account({ provider, address, signer: keys.ecdsaPrivateKey });
@@ -101,10 +102,11 @@ async function main() {
   if ((await classAt(address)) === num.toHex(OZ_ACCOUNT_CLASS)) {
     const oz = new Account({ provider, address, signer: keys.ecdsaPrivateKey });
     const nonce = await provider.getNonceForAddress(address, "latest");
+    const proof = await new BrowserHybridSigner(keys).signRaw(registrationHash(keys.ecdsaPublicKey, falconFelts));
     const m = await oz.execute([
       { contractAddress: address, entrypoint: "upgrade", calldata: [MIGRATABLE_CLASS] },
-      { contractAddress: address, entrypoint: "register_falcon_public_key", calldata: [num.toHex(falconFelts.length), ...falconFelts, state.shakeClass] },
-    ], { nonce, tip: 0n, resourceBounds: await bounds(30000000n) });
+      { contractAddress: address, entrypoint: "migrate", calldata: [keys.ecdsaPublicKey, num.toHex(falconFelts.length), ...falconFelts, state.shakeClass, num.toHex(proof.length), ...proof] },
+    ], { nonce, tip: 0n, resourceBounds: await bounds(250000000n) });
     await provider.waitForTransaction(m.transaction_hash);
     state.migrationTx = m.transaction_hash; save();
     log("migrated (SHAKE verifier):", `${VOYAGER}/tx/${m.transaction_hash}`);

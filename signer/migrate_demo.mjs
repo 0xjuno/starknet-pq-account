@@ -4,7 +4,7 @@
 //   1. create a fresh "existing user" OZ account (new testnet keys), fund + deploy it
 //   2. declare the thin HybridMigratableAccount class (verification is library-called into
 //      the HybridPoseidonAccount class declared by demo.mjs)
-//   3. ONE tx signed by the old ECDSA key: [upgrade(migratable), register_falcon_public_key]
+//   3. ONE tx signed by the old ECDSA key: [upgrade(migratable), migrate(keys, verifier, proof)]
 //   4. check: same address, new class, keys stored, balance only moved by fees
 //   5. hybrid-signed transfer succeeds; ECDSA-only transfer is rejected
 import { Account, CallData, RpcProvider, Signer, cairo, ec, hash, json, num } from "starknet";
@@ -12,6 +12,7 @@ import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { FALCON_PY, FALCON_SIGNER, KEYS, PY, RPC, TARGET } from "./config.mjs";
+import { registrationHash } from "./pq_account_kit.mjs";
 
 const STATE_FILE = `${KEYS}/migrate-state.json`;
 const USER_ECDSA = `${KEYS}/migrate-user-ecdsa.json`;
@@ -103,10 +104,10 @@ async function main() {
 
   // 1. fund + deploy the classical OZ account
   if (!(await classAt(userAddress))) {
-    if ((await strkBalance(userAddress)) < 3n * 10n ** 18n) {
-      log("funding user with 4 STRK...");
+    if ((await strkBalance(userAddress)) < 5n * 10n ** 18n) {
+      log("funding user with 6 STRK...");
       const nonce = await provider.getNonceForAddress(deployerAddress, "latest");
-      const t = await deployerAcc.execute(transferCall(userAddress, 4n * 10n ** 18n), { nonce, tip: 0n });
+      const t = await deployerAcc.execute(transferCall(userAddress, 6n * 10n ** 18n), { nonce, tip: 0n });
       await provider.waitForTransaction(t.transaction_hash);
       state.fundTx = t.transaction_hash; save();
     }
@@ -147,14 +148,16 @@ async function main() {
     state.before = { class: before.class, balance: before.balance.toString() }; save();
     log("BEFORE: class", before.class, "balance", fmt(before.balance));
     const userAcc = new Account({ provider, address: userAddress, signer: user.privateKey });
+    // Key-possession proof: a hybrid signature by the new keys over the registration hash.
+    const proof = await new HybridSigner(user.privateKey).signRaw(registrationHash(user.publicKey, falconPk));
     const calls = [
       { contractAddress: userAddress, entrypoint: "upgrade", calldata: [state.migratableClass] },
-      { contractAddress: userAddress, entrypoint: "register_falcon_public_key",
-        calldata: [num.toHex(falconPk.length), ...falconPk, VERIFIER_CLASS] },
+      { contractAddress: userAddress, entrypoint: "migrate",
+        calldata: [user.publicKey, num.toHex(falconPk.length), ...falconPk, VERIFIER_CLASS, num.toHex(proof.length), ...proof] },
     ];
-    log("migrating in place: [upgrade, register_falcon_public_key] signed by the ECDSA key...");
+    log("migrating in place: [upgrade, migrate(keys, proof)] signed by the ECDSA key...");
     const nonce = await provider.getNonceForAddress(userAddress, "latest");
-    const m = await userAcc.execute(calls, { nonce, tip: 0n, resourceBounds: await bounds(30000000n) });
+    const m = await userAcc.execute(calls, { nonce, tip: 0n, resourceBounds: await bounds(150000000n) });
     const rc = await provider.waitForTransaction(m.transaction_hash);
     state.migrationTx = m.transaction_hash;
     state.migrationFee = rc.actual_fee ? rc.actual_fee.amount : null; save();

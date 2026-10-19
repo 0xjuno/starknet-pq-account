@@ -17,6 +17,7 @@ import { sha512 } from "@noble/hashes/sha2";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { FALCON_FROM_SEED, FALCON_PY, FALCON_SIGNER, KEYS, PY, RPC, SIGNER_DIR } from "./config.mjs";
+import { registrationHash } from "./pq_account_kit.mjs";
 
 const STATE_FILE = `${KEYS}/backup-state.json`;
 const MNEMONIC_FILE = `${KEYS}/backup-mnemonic.txt`;
@@ -110,9 +111,9 @@ async function main() {
   state.address = address; save();
   log("account:", address);
   if (!(await classAt(address))) {
-    if ((await strkBalance(address)) < 2n * 10n ** 18n) {
+    if ((await strkBalance(address)) < 5n * 10n ** 18n) {
       const nonce = await provider.getNonceForAddress(deployerAddress, "latest");
-      const t = await deployerAcc.execute(transferCall(address, 25n * 10n ** 17n), { nonce, tip: 0n });
+      const t = await deployerAcc.execute(transferCall(address, 6n * 10n ** 18n), { nonce, tip: 0n });
       await provider.waitForTransaction(t.transaction_hash);
     }
     const oz = new Account({ provider, address, signer: a.ecdsaPriv });
@@ -124,10 +125,11 @@ async function main() {
   if ((await classAt(address)) === num.toHex(OZ_ACCOUNT_CLASS)) {
     const oz = new Account({ provider, address, signer: a.ecdsaPriv });
     const nonce = await provider.getNonceForAddress(address, "latest");
+    const proof = await new HybridSigner(a.ecdsaPriv, `${KEYS}/backup-falcon-A.json`).signRaw(registrationHash(a.ecdsaPub, a.falconPk));
     const m = await oz.execute([
       { contractAddress: address, entrypoint: "upgrade", calldata: [MIGRATABLE_CLASS] },
-      { contractAddress: address, entrypoint: "register_falcon_public_key", calldata: [num.toHex(a.falconPk.length), ...a.falconPk, VERIFIER_CLASS] },
-    ], { nonce, tip: 0n, resourceBounds: await bounds(30000000n) });
+      { contractAddress: address, entrypoint: "migrate", calldata: [a.ecdsaPub, num.toHex(a.falconPk.length), ...a.falconPk, VERIFIER_CLASS, num.toHex(proof.length), ...proof] },
+    ], { nonce, tip: 0n, resourceBounds: await bounds(150000000n) });
     await provider.waitForTransaction(m.transaction_hash);
     state.migrationTx = m.transaction_hash; save();
     log("migrated in place:", `${VOYAGER}/tx/${m.transaction_hash}`);

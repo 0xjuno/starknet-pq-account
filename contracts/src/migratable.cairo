@@ -7,11 +7,6 @@
 //! second call in the same multicall already runs this class. From the next transaction on,
 //! BOTH an ECDSA and a Falcon signature are required.
 //!
-//! First OpenZeppelin path, kept for the Sepolia demo scripts: multicall
-//!   [ self.upgrade(this class), self.register_falcon_public_key(falcon_pk, verifier) ]
-//! It does not check a possession proof, so a wrong Falcon key locks the account. Wallets
-//! should use `migrate`.
-//!
 //! The ECDSA key stays under the storage name OpenZeppelin accounts use
 //! (`Account_public_key`), so it carries over across the class replacement.
 //!
@@ -21,20 +16,20 @@
 //! (`ecdsa_public_key`, `falcon_public_key`). Swapping the verifier (e.g. to an audited or
 //! standard SHAKE-256 version) does not require migrating the account again.
 //!
-//! Fallback bootstrap: if the class was replaced without registering a Falcon key, the
-//! account accepts an ECDSA-only transaction whose ONLY call is
-//! `register_falcon_public_key` on itself. (In a post-quantum world that window could be
-//! front-run, which is why the atomic flow above is the recommended path.)
+//! Fallback bootstrap: if the class was replaced without migrating, the account accepts an
+//! ECDSA-only transaction (checked against `Account_public_key`, so OpenZeppelin accounts
+//! only) whose ONLY call is `migrate` on itself. (In a post-quantum world that window could be
+//! front-run, which is why the atomic flow is the recommended path.)
 //!
-//! Accounts that keep their key elsewhere (Argent / Ready, Braavos) pass both keys in and
-//! prove they hold them: `proof` is a hybrid signature over
+//! Every path passes both keys in and proves the owner holds them: `proof` is a hybrid
+//! signature over
 //! `registration_hash(ecdsa_public_key, falcon_public_key)`, checked by the verifier after
 //! the keys are written, so a wrong key reverts the migration instead of locking the account.
 //!   Argent 0.4+:  self.upgrade(this class, MigrationData) -> library call `perform_upgrade`
 //!   Argent 0.3.x: self.upgrade(this class, MigrationData) -> class replaced, then library
 //!                 call `execute_after_upgrade`
-//!   Braavos: multicall [ self.upgrade(this class), self.migrate(...) ]
-//!   Any account with a self-only `upgrade`: the Braavos-style multicall.
+//!   Braavos, OpenZeppelin: multicall [ self.upgrade(this class), self.migrate(...) ]
+//!   Any account with a self-only `upgrade`: the same multicall.
 //!
 //! EXPERIMENTAL AND UNAUDITED. Testnet / demo use only.
 
@@ -62,9 +57,6 @@ pub fn registration_hash(ecdsa_public_key: felt252, falcon_public_key: Span<felt
 
 #[starknet::interface]
 pub trait IMigratable<TState> {
-    fn register_falcon_public_key(
-        ref self: TState, falcon_public_key: Array<felt252>, verifier_class_hash: ClassHash,
-    );
     fn migrate(
         ref self: TState,
         ecdsa_public_key: felt252,
@@ -173,11 +165,12 @@ pub mod HybridMigratableAccount {
                     self._verify(tx_info.transaction_hash, tx_info.signature),
                 );
             }
-            // Bootstrap: ECDSA-only, and only a single self-call registering the Falcon key.
+            // Bootstrap: ECDSA-only, and only a single self-call to `migrate` (which checks the
+            // key-possession proof).
             assert(calls.len() == 1, NOT_REGISTERED);
             let call = calls.at(0);
             assert(*call.to == get_contract_address(), NOT_REGISTERED);
-            assert(*call.selector == selector!("register_falcon_public_key"), NOT_REGISTERED);
+            assert(*call.selector == selector!("migrate"), NOT_REGISTERED);
             execution::assert_valid_signature(
                 EcdsaStarkVerifier::verify(
                     tx_info.transaction_hash,
@@ -212,19 +205,8 @@ pub mod HybridMigratableAccount {
 
     #[abi(embed_v0)]
     impl MigratableImpl of super::IMigratable<ContractState> {
-        /// One-time registration of the Falcon key after an in-place upgrade.
-        fn register_falcon_public_key(
-            ref self: ContractState,
-            falcon_public_key: Array<felt252>,
-            verifier_class_hash: ClassHash,
-        ) {
-            self._assert_only_self();
-            assert(!self._falcon_registered(), ALREADY_REGISTERED);
-            self._register(falcon_public_key, verifier_class_hash);
-        }
-
-        /// Migration for accounts whose ECDSA key is not under `Account_public_key`
-        /// (Braavos-style multicall after `upgrade`). Both keys must be proven.
+        /// Migration after a self-only `upgrade` (Braavos, OpenZeppelin), in the same
+        /// multicall. Both keys must be proven.
         fn migrate(
             ref self: ContractState,
             ecdsa_public_key: felt252,

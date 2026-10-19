@@ -10,6 +10,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { deriveAccountKeys } from "./pq_keys.mjs";
 import { makeNtt, publicKeyFelts, signatureFelts, signTxHash } from "./falcon_adapter.mjs";
 import { KEYS, ROOTS, RPC, TARGET } from "./config.mjs";
+import { registrationHash } from "./pq_account_kit.mjs";
 
 const STATE_FILE = `${KEYS}/public-demo-state.json`;
 const STRK = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
@@ -90,10 +91,11 @@ await sleep(1500);
 if ((await classAt(address)) === num.toHex(OZ_ACCOUNT_CLASS)) {
   const oz = new Account({ provider, address, signer: keys.ecdsaPrivateKey });
   const nonce = await provider.getNonceForAddress(address, "latest");
+  const proof = await new BrowserHybridSigner(keys).signRaw(registrationHash(keys.ecdsaPublicKey, falconFelts));
   const m = await oz.execute([
     { contractAddress: address, entrypoint: "upgrade", calldata: [state.migratableClass] },
-    { contractAddress: address, entrypoint: "register_falcon_public_key", calldata: [num.toHex(falconFelts.length), ...falconFelts, SHAKE_CLASS] },
-  ], { nonce, tip: 0n, resourceBounds: await bounds(30000000n) });
+    { contractAddress: address, entrypoint: "migrate", calldata: [keys.ecdsaPublicKey, num.toHex(falconFelts.length), ...falconFelts, SHAKE_CLASS, num.toHex(proof.length), ...proof] },
+  ], { nonce, tip: 0n, resourceBounds: await bounds(250000000n) });
   await provider.waitForTransaction(m.transaction_hash);
   state.migrationTx = m.transaction_hash; save();
   log("migrated in place:", `${VOYAGER}/tx/${m.transaction_hash}`);

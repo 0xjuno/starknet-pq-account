@@ -8,6 +8,8 @@
 //   - then: stored keys equal the keys from the words, balance dropped by exactly the fee,
 //     a hybrid-signed transfer succeeds, an ECDSA-only transfer is rejected
 // Idempotent; resumes from .keys/wallet-matrix-state.json.   node wallet_migrate_demo.mjs [name ...]
+// PQ_MATRIX_RUN=<tag> starts a separate run (own state file and fresh words), e.g. after a new
+// HybridMigratableAccount class.
 import { Account, CallData, RpcProvider, Signer, cairo, constants, ec, hash, json, num } from "starknet";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { generateMnemonic } from "@scure/bip39";
@@ -15,7 +17,8 @@ import { wordlist } from "@scure/bip39/wordlists/english";
 import { HybridSigner, deriveAccountKeys, inspectAccount, migrationCalls, prepareKeys } from "./pq_account_kit.mjs";
 import { KEYS, ROOTS, RPC, TARGET } from "./config.mjs";
 
-const STATE_FILE = `${KEYS}/wallet-matrix-state.json`;
+const RUN = process.env.PQ_MATRIX_RUN || "";
+const STATE_FILE = `${KEYS}/wallet-matrix-state${RUN ? `-${RUN}` : ""}.json`;
 const STRK = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 const BRAAVOS_BASE = "0x03d16c7a9a60b0593bd202f660a28c5d76e0403601d9ccc7e4fa253b6a70c201";
 const VOYAGER = "https://sepolia.voyager.online";
@@ -59,7 +62,7 @@ async function retry(fn, tries = 6) {
 }
 
 function walletKeys(name, profile) {
-  const file = `${KEYS}/wallet-${name}-mnemonic.txt`;
+  const file = `${KEYS}/wallet-${RUN ? `${RUN}-` : ""}${name}-mnemonic.txt`;
   if (!existsSync(file)) writeFileSync(file, generateMnemonic(wordlist, 256));
   return prepareKeys(deriveAccountKeys(readFileSync(file, "utf8").trim(), 0, profile), roots);
 }
