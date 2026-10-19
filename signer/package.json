@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "starknet-pq-account-signer",
   "version": "0.1.0",
   "private": true,
@@ -14,7 +14,8 @@
     "browser-setup": "node browser_setup.mjs",
     "wallet-profiles": "node wallet_profiles_check.mjs",
     "wallet-fixture": "node migration_fixture.mjs",
-    "wallets": "node wallet_migrate_demo.mjs"
+    "wallets": "node wallet_migrate_demo.mjs",
+    "survey": "node mainnet_survey.mjs 400"
   },
   "dependencies": {
     "@noble/hashes": "1.6.1",

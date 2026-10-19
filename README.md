@@ -4,6 +4,12 @@ Move an existing Starknet account (OpenZeppelin, Argent / Ready, Braavos) to pos
 signatures without changing its address or funds, back up both keys with one mnemonic, and sign
 from the browser.
 
+- Real accounts of nine wallet classes (Argent 0.3.0 to 0.5.0, Braavos 1.0 to 1.2, two
+  OpenZeppelin classes) were migrated on Sepolia.
+- Of 400 accounts that sent mainnet transactions in a 0.8-hour window, 359 (89.8%) use a class
+  this kit migrates; 350 (87.5%) are on the nine tested classes. See
+  [`contracts/docs/wallet-coverage.md`](contracts/docs/wallet-coverage.md).
+
 > **Experimental. Unaudited. Testnet only.** Do not hold real funds with these contracts.
 
 **Try it:** [johyeonchae.github.io/starknet-pq-account](https://johyeonchae.github.io/starknet-pq-account/)
@@ -32,7 +38,8 @@ in-place upgrade, the hybrid signature check, key backup and recovery, and brows
 
 | Piece | What it does |
 | --- | --- |
-| `HybridMigratableAccount` | Thin account class for in-place migration of an existing account, and library-calls a declared verifier class. OpenZeppelin accounts keep their `Account_public_key`. Argent accounts migrate in one call through Argent's own `upgrade(class_hash, data)` callback (`perform_upgrade`); Braavos and other accounts use `[upgrade, migrate]` in one transaction. `migrate` and `perform_upgrade` require a hybrid signature by both new keys, so a wrong key reverts the migration instead of locking the account. The verifier, the Falcon key and the ECDSA key can each be replaced later by a hybrid-signed self-call. |
+| `HybridMigratableAccount` | Thin account class for in-place migration of an existing account, and library-calls a declared verifier class. Argent accounts migrate in one call through Argent's own `upgrade(class_hash, data)` callbacks (`perform_upgrade` from 0.4, `execute_after_upgrade` in 0.3.x); Braavos and OpenZeppelin accounts use `[upgrade, migrate]` in one transaction. Each path requires a hybrid signature by both new keys, so a wrong key reverts the migration instead of locking the account. The verifier, the Falcon key and the ECDSA key can each be replaced later by a hybrid-signed self-call. |
+| Wallet integration kit | [`signer/pq_account_kit.mjs`](signer/pq_account_kit.mjs): `inspectAccount` tells which wallet an address is and whether it can move today (Argent owners and guardians, Braavos hardware signers and multisig); `migrationCalls` builds the transaction for that wallet; `HybridSigner` signs afterwards with starknet.js. |
 | `HybridPoseidonAccount`, `HybridShakeAccount` | Full hybrid accounts, also used as verifier classes: a transaction passes only if BOTH a STARK-curve ECDSA signature and a Falcon-512 signature verify over the same hash. |
 | Key backup profile | One BIP39 mnemonic restores both keys. For an Argent X / Ready account, the classical key follows Argent's own derivation (checked against argent-x test vectors), so the words the user already has restore the current key and the new Falcon key. See [`contracts/docs/key-backup-v0.md`](contracts/docs/key-backup-v0.md). |
 | Browser signer | Falcon-512 signing in the browser with [@noble/post-quantum](https://github.com/paulmillr/noble-post-quantum) (pure JS), converted by `signer/falcon_adapter.mjs` into the layout of the standard SHAKE-256 on-chain verifier. Demo page: [`docs/index.html`](docs/index.html). |
@@ -63,8 +70,9 @@ with a proof that the owner holds both keys:
 
 | Wallet | Migration transaction, signed with the wallet's current key |
 | --- | --- |
-| Argent / Ready (0.4+ by code reading; tested on 0.5.0) | `upgrade(HybridMigratableAccount, MigrationData)`: Argent checks SRC6 on the new class and library-calls its `perform_upgrade`, which replaces the class and registers both keys in the same call |
-| Braavos | `[upgrade(HybridMigratableAccount), migrate(ecdsa_key, falcon_key, verifier, proof)]` |
+| Argent / Ready 0.4, 0.5 | `upgrade(HybridMigratableAccount, MigrationData)`: Argent checks SRC6 on the new class and library-calls its `perform_upgrade`, which replaces the class and registers both keys in the same call |
+| Argent 0.3.0, 0.3.1 | Same call. Argent replaces the class itself, then library-calls `execute_after_upgrade` with the same data |
+| Braavos 1.0 to 1.2, OpenZeppelin | `[upgrade(HybridMigratableAccount), migrate(ecdsa_key, falcon_key, verifier, proof)]` |
 
 `proof` is a hybrid signature over `poseidon(["starknet-pq-register-v1", ecdsa_key, ...falcon_key])`.
 It is checked by the verifier after the keys are written; if it fails, the whole transaction
@@ -92,9 +100,10 @@ Gas measured on Sepolia, priced with the latest Starknet mainnet block on 2026-1
 | Migrated hybrid account, Poseidon Falcon verifier | 15.8M | 0.18 STRK, about $0.014 |
 | Migrated hybrid account, standard SHAKE-256 verifier (browser path) | 53.9M | 0.61 STRK, about $0.047 |
 
-The migration itself is a one-time transaction. With the key-possession proof checked by the
-SHAKE-256 verifier it used 70.4M L2 gas (Argent) and 74.5M (Braavos) on Sepolia, about 0.8 STRK
-or $0.06 at the same mainnet prices.
+The migration itself is a one-time transaction, including the key-possession proof checked by
+the SHAKE-256 verifier. From wallet classes compiled with Sierra 1.7.0 (Argent 0.5.0, Braavos
+1.2.0) it used 70 to 75M L2 gas, about 0.8 STRK or $0.06 at the same prices; from older classes
+138 to 153M, about 1.74 STRK or $0.13. See [`contracts/docs/wallet-coverage.md`](contracts/docs/wallet-coverage.md).
 
 Reproduce with `node signer/mainnet_cost.mjs`.
 
@@ -121,6 +130,11 @@ Reproduce with `node signer/mainnet_cost.mjs`.
   accounts were deployed from fresh words with each wallet's derivation, then migrated. After
   migration the stored classical and Falcon keys equal the keys derived from those words, and
   each balance dropped by exactly the migration fee.
+- The same check on one real account of each of nine wallet classes in active mainnet use
+  (Argent 0.3.0, 0.3.1, 0.4.0, 0.5.0; Braavos 1.0.0, 1.1.0, 1.2.0; two OpenZeppelin classes),
+  driven only by `pq_account_kit.mjs`: all nine migrated, matched their words, sent a
+  hybrid-signed transfer and rejected an ECDSA-only one. Transactions in
+  [`contracts/docs/wallet-coverage.md`](contracts/docs/wallet-coverage.md).
 - ECDSA-only transfers from migrated accounts are rejected in `__validate__`.
 - Declaring the thin migratable class costs about 4 STRK on Sepolia, against about 51 STRK for a
   full hybrid class, because verification is shared through a library call.
@@ -156,7 +170,8 @@ Account: [`0x343e3df5…c0db`](https://sepolia.voyager.online/contract/0x343e3df
   sessions are not available yet.
 - Wallet migrations were tested on accounts with a single STARK key. An Argent account with a
   guardian needs the guardian's co-signature on the upgrade; multisig and hardware-signer
-  accounts are not covered.
+  accounts are not covered. Argent-based wallets under other names (`OkxAccount`,
+  `ArgentAccountXverse`) and accounts without a self-upgrade entry point are not covered.
 - The Braavos key derivation matches third-party scripts, not published Braavos code.
 - The passkey lock needs the WebAuthn PRF extension. Support differs by device, browser and
   password manager; it was tested with a Chromium virtual authenticator, not yet across real
@@ -174,7 +189,7 @@ commit `5145a818c9512b4a443507d3375e75dae3076af6`.
 ```sh
 cd contracts
 scarb build
-scarb cairo-test          # 49 tests
+scarb cairo-test          # 52 tests
 
 cd ../signer
 npm install
@@ -189,7 +204,8 @@ node browser_setup.mjs  # SHAKE verifier + account for the browser demo (docs/in
 node mainnet_cost.mjs   # fee per transfer at current mainnet prices
 node passkey_e2e.mjs    # demo page + virtual passkey: lock, reload, unlock, send (Chromium)
 node wallet_profiles_check.mjs  # offline: Argent X derivation vs argent-x test vectors
-node wallet_migrate_demo.mjs    # deploy and migrate real Argent 0.5.0 and Braavos accounts
+node wallet_migrate_demo.mjs    # deploy and migrate real accounts of nine wallet classes
+node mainnet_survey.mjs 400     # read-only: which recent mainnet senders could migrate
 ```
 
 ## Credits

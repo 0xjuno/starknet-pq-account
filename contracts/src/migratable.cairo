@@ -26,7 +26,9 @@
 //! prove they hold them: `proof` is a hybrid signature over
 //! `registration_hash(ecdsa_public_key, falcon_public_key)`, checked by the verifier after
 //! the keys are written, so a wrong key reverts the migration instead of locking the account.
-//!   Argent:  self.upgrade(this class, MigrationData) -> library call `perform_upgrade`
+//!   Argent 0.4+:  self.upgrade(this class, MigrationData) -> library call `perform_upgrade`
+//!   Argent 0.3.x: self.upgrade(this class, MigrationData) -> class replaced, then library
+//!                 call `execute_after_upgrade`
 //!   Braavos: multicall [ self.upgrade(this class), self.migrate(...) ]
 //!   Any account with a self-only `upgrade`: the Braavos-style multicall.
 //!
@@ -67,6 +69,7 @@ pub trait IMigratable<TState> {
         proof: Array<felt252>,
     );
     fn perform_upgrade(ref self: TState, new_implementation: ClassHash, data: Span<felt252>);
+    fn execute_after_upgrade(ref self: TState, data: Array<felt252>) -> Array<felt252>;
     fn rotate_falcon_public_key(ref self: TState, falcon_public_key: Array<felt252>);
     fn rotate_ecdsa_public_key(ref self: TState, ecdsa_public_key: felt252);
     fn set_verifier_class_hash(ref self: TState, verifier_class_hash: ClassHash);
@@ -238,10 +241,16 @@ pub mod HybridMigratableAccount {
             self._assert_only_self();
             assert(!self._falcon_registered(), ALREADY_REGISTERED);
             starknet::syscalls::replace_class_syscall(new_implementation).unwrap_syscall();
-            let mut data = data;
-            let m: MigrationData = Serde::deserialize(ref data).expect(INVALID_DATA);
-            assert(data.is_empty(), INVALID_DATA);
-            self._migrate(m.ecdsa_public_key, m.falcon_public_key, m.verifier_class_hash, m.proof);
+            self._migrate_from_data(data);
+        }
+
+        /// Argent 0.3.x upgrade callback: the old class has already replaced itself with this
+        /// one and library-calls this with the `upgrade` calldata (a serialized `MigrationData`).
+        fn execute_after_upgrade(ref self: ContractState, data: Array<felt252>) -> Array<felt252> {
+            self._assert_only_self();
+            assert(!self._falcon_registered(), ALREADY_REGISTERED);
+            self._migrate_from_data(data.span());
+            array![]
         }
 
         /// Replaces the Falcon key. Requires a hybrid-signed transaction (self-call).
@@ -333,6 +342,13 @@ pub mod HybridMigratableAccount {
             }
             self.Migratable_verifier_class_hash.write(verifier_class_hash);
             self.emit(FalconKeyRegistered { verifier_class_hash });
+        }
+
+        fn _migrate_from_data(ref self: ContractState, data: Span<felt252>) {
+            let mut data = data;
+            let m: MigrationData = Serde::deserialize(ref data).expect(INVALID_DATA);
+            assert(data.is_empty(), INVALID_DATA);
+            self._migrate(m.ecdsa_public_key, m.falcon_public_key, m.verifier_class_hash, m.proof);
         }
 
         /// Writes both keys, then requires a hybrid signature by them over the registration

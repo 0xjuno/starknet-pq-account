@@ -19,3 +19,4 @@ export const ROOTS = resolve(REPO, "signer/falcon_ntt_roots.json");
 export const BROWSER_FIXTURE = resolve(REPO, "contracts/src/tests_browser.cairo");
 export const PAGE_CONFIG = resolve(REPO, "signer/browser-wallet.config.json");
 export const WALLETS_FIXTURE = resolve(REPO, "contracts/src/tests_wallets_fixture.cairo");
+export const SURVEY_DIR = resolve(REPO, "signer/survey");

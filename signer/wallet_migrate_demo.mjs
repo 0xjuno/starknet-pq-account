@@ -1,27 +1,40 @@
-// Sepolia demo: migrate REAL Argent (0.5.0) and Braavos accounts in place to the hybrid
-// ECDSA + Falcon-512 account. TESTNET ONLY.
-//   - each account's keys come from its own words, with that wallet's ECDSA derivation
-//     (pq_keys.mjs: "argentx", "braavos"); the Falcon key comes from the same words
-//   - Argent:  ONE call, upgrade(migratable, MigrationData) -> perform_upgrade
-//   - Braavos: ONE tx, multicall [upgrade(migratable), migrate(...)]
-//   - both carry a key-possession proof: hybrid signature over registration_hash(ecdsa, falcon)
-//   - then a hybrid-signed transfer succeeds and an ECDSA-only transfer is rejected
-// Steps are idempotent and resume from .keys/wallet-migrate-state.json.
-import { Account, CallData, RpcProvider, Signer, cairo, constants, ec, hash, json, num, shortString } from "starknet";
+// Sepolia matrix: deploy REAL accounts of each wallet class seen on mainnet (Argent 0.3.0 to 0.5.0,
+// Braavos 1.0.0 to 1.2.0, OpenZeppelin) and migrate each in place to the hybrid ECDSA + Falcon-512
+// account using only pq_account_kit.mjs. TESTNET ONLY.
+//   - keys come from fresh words with that wallet's ECDSA derivation (pq_keys.mjs profiles);
+//     the Falcon key comes from the same words
+//   - inspectAccount says which wallet it is and whether it can move; migrationCalls builds the
+//     transaction (Argent: one upgrade call; Braavos, OpenZeppelin: [upgrade, migrate])
+//   - then: stored keys equal the keys from the words, balance dropped by exactly the fee,
+//     a hybrid-signed transfer succeeds, an ECDSA-only transfer is rejected
+// Idempotent; resumes from .keys/wallet-matrix-state.json.   node wallet_migrate_demo.mjs [name ...]
+import { Account, CallData, RpcProvider, Signer, cairo, constants, ec, hash, json, num } from "starknet";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { generateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
-import { deriveAccountKeys } from "./pq_keys.mjs";
-import { makeNtt, publicKeyFelts, signatureFelts, signTxHash } from "./falcon_adapter.mjs";
+import { HybridSigner, deriveAccountKeys, inspectAccount, migrationCalls, prepareKeys } from "./pq_account_kit.mjs";
 import { KEYS, ROOTS, RPC, TARGET } from "./config.mjs";
 
-const STATE_FILE = `${KEYS}/wallet-migrate-state.json`;
+const STATE_FILE = `${KEYS}/wallet-matrix-state.json`;
 const STRK = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
-const ARGENT_CLASS = "0x073414441639dcd11d1846f287650a00c60c416b9d3ba45d31c651672125b2c2"; // account 0.5.0
 const BRAAVOS_BASE = "0x03d16c7a9a60b0593bd202f660a28c5d76e0403601d9ccc7e4fa253b6a70c201";
-const BRAAVOS_IMPL = "0x03957f9f5a1cbfe918cedc2015c85200ca51a5f7506ecb6de98a5207b759bf8a";
 const VOYAGER = "https://sepolia.voyager.online";
-const DOMAIN = "starknet-pq-register-v1";
+// Argent 0.3.x classes run the whole migration in Cairo-steps accounting: about 140-155M L2 gas,
+// against about 70-75M from newer classes.
+const MIGRATION_L2_MAX = 250000000n;
+
+// Class hashes as used on mainnet (all also declared on Sepolia).
+const WALLETS = {
+  "argent-0.3.0": { profile: "argentx", cls: "0x1a736d6ed154502257f02b1ccdf4d9d1089f80811cd6acad48e6b6a9d1f2003", ctor: (pk) => [pk, 0] },
+  "argent-0.3.1": { profile: "argentx", cls: "0x29927c8af6bccf3f6fda035981e765a7bdbf18a2dc0d630494f8758aa908e2b", ctor: (pk) => [pk, 0] },
+  "argent-0.4.0": { profile: "argentx", cls: "0x036078334509b514626504edc9fb252328d1a240e4e948bef8d0c08dff45927f", ctor: (pk) => [0, pk, 1] },
+  "argent-0.5.0": { profile: "argentx", cls: "0x073414441639dcd11d1846f287650a00c60c416b9d3ba45d31c651672125b2c2", ctor: (pk) => [0, pk, 1] },
+  "braavos-1.0.0": { profile: "braavos", impl: "0x816dd0297efc55dc1e7559020a3a825e81ef734b558f03c83325d4da7e6253" },
+  "braavos-1.1.0": { profile: "braavos", impl: "0x2c8c7e6fbcfb3e8e15a46648e8914c6aa1fc506fc1e7fb3d1e19630716174bc" },
+  "braavos-1.2.0": { profile: "braavos", impl: "0x3957f9f5a1cbfe918cedc2015c85200ca51a5f7506ecb6de98a5207b759bf8a" },
+  "openzeppelin-a": { profile: "pq", cls: "0x05b4b537eaa2399e3aa99c4e2e0208ebd6c71bc1467938cd52c798c601e43564", ctor: (pk) => [pk] },
+  "openzeppelin-b": { profile: "pq", cls: "0xe2eb8f5672af4e6a4e8a8f1b44989685e668489b0a25437733756c5a34a1d6", ctor: (pk) => [pk] },
+};
 
 const SHAKE_VERIFIER = JSON.parse(readFileSync(`${KEYS}/browser-state.json`, "utf8")).shakeClass;
 const state = existsSync(STATE_FILE) ? JSON.parse(readFileSync(STATE_FILE, "utf8")) : {};
@@ -29,13 +42,13 @@ const save = () => writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 const log = (...a) => console.log(...a);
 const fmt = (wei) => (Number(wei) / 1e18).toFixed(6) + " STRK";
 const provider = new RpcProvider({ nodeUrl: RPC });
-const ntt = makeNtt(JSON.parse(readFileSync(ROOTS, "utf8")));
+const roots = JSON.parse(readFileSync(ROOTS, "utf8"));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function retry(fn, tries = 5) {
+async function retry(fn, tries = 6) {
   for (let i = 0; ; i++) {
     try { return await fn(); } catch (e) {
-      if (i + 1 >= tries || !/429|rate|ECONNRESET|fetch failed/i.test(e?.message || "")) throw e;
+      if (i + 1 >= tries || !/cu limit|too fast|429|rate|ECONNRESET|fetch failed/i.test(e?.message || "")) throw e;
       await sleep(3000 * (i + 1));
     }
   }
@@ -44,18 +57,9 @@ async function retry(fn, tries = 5) {
 function walletKeys(name, profile) {
   const file = `${KEYS}/wallet-${name}-mnemonic.txt`;
   if (!existsSync(file)) writeFileSync(file, generateMnemonic(wordlist, 256));
-  const k = deriveAccountKeys(readFileSync(file, "utf8").trim(), 0, profile);
-  return { ...k, falconFelts: publicKeyFelts(k.falconPublicKey, ntt) };
+  return prepareKeys(deriveAccountKeys(readFileSync(file, "utf8").trim(), 0, profile), roots);
 }
 
-const hybridSignature = (h, k) => {
-  const e = ec.starkCurve.sign(num.toHex(h), k.ecdsaPrivateKey);
-  return [num.toHex(e.r), num.toHex(e.s), ...signatureFelts(signTxHash(BigInt(h), k.falconSecretKey), k.falconPublicKey).map(num.toHex)];
-};
-class HybridSigner extends Signer {
-  constructor(k) { super(k.ecdsaPrivateKey); this.k = k; }
-  async signRaw(msgHash) { return hybridSignature(msgHash, this.k); }
-}
 // An attacker who forged the classical key but has no Falcon key.
 class EcdsaOnlySigner extends Signer {
   constructor(pk) { super(pk); this.pk = pk; }
@@ -63,20 +67,13 @@ class EcdsaOnlySigner extends Signer {
 }
 // Braavos DEPLOY_ACCOUNT: [r, s, impl, AdditionalDeploymentParams..., chain_id, aux_r, aux_s]
 class BraavosDeploySigner extends Signer {
-  constructor(pk) { super(pk); this.pk = pk; }
+  constructor(pk, impl) { super(pk); this.pk = pk; this.impl = impl; }
   async signRaw(msgHash) {
-    const aux = [BRAAVOS_IMPL, 0, 0, 0, 0, 0, 0, 0, 0, 0, constants.StarknetChainId.SN_SEPOLIA].map(num.toHex);
+    const aux = [this.impl, 0, 0, 0, 0, 0, 0, 0, 0, 0, constants.StarknetChainId.SN_SEPOLIA].map(num.toHex);
     const a = ec.starkCurve.sign(hash.computePoseidonHashOnElements(aux), this.pk);
     const t = ec.starkCurve.sign(num.toHex(msgHash), this.pk);
     return [num.toHex(t.r), num.toHex(t.s), ...aux, num.toHex(a.r), num.toHex(a.s)];
   }
-}
-
-function migrationArgs(k) {
-  const registration = hash.computePoseidonHashOnElements([shortString.encodeShortString(DOMAIN), k.ecdsaPublicKey, ...k.falconFelts]);
-  const proof = hybridSignature(registration, k);
-  // MigrationData { ecdsa_public_key, falcon_public_key: Array, verifier_class_hash, proof: Array }
-  return [k.ecdsaPublicKey, num.toHex(k.falconFelts.length), ...k.falconFelts.map(num.toHex), SHAKE_VERIFIER, num.toHex(proof.length), ...proof];
 }
 
 async function strkBalance(address) {
@@ -97,18 +94,20 @@ async function bounds(l2Max, l2Mult = [3n, 2n], dataMax = 5000n) {
 const transferCall = (to, amount) => ({ contractAddress: STRK, entrypoint: "transfer", calldata: CallData.compile({ recipient: to, amount: cairo.uint256(amount) }) });
 async function send(acc, calls, l2Max) {
   const nonce = await retry(() => provider.getNonceForAddress(acc.address, "latest"));
-  const t = await acc.execute(calls, { nonce, tip: 0n, resourceBounds: await bounds(l2Max) });
+  const t = await retry(async () => acc.execute(calls, { nonce, tip: 0n, resourceBounds: await bounds(l2Max) }));
   const rc = await retry(() => provider.waitForTransaction(t.transaction_hash));
   return { tx: t.transaction_hash, fee: rc.actual_fee?.amount, l2Gas: rc.execution_resources?.l2_gas, status: rc.execution_status };
 }
+const errTail = (e) => { const m = e?.message || String(e); return m.slice(Math.max(0, m.length - 300)); };
 
 async function declareMigratable(deployerAcc) {
-  if (state.migratableClass) return;
   const sierraPath = `${TARGET}/pq_hybrid_HybridMigratableAccount.contract_class.json`;
   const sierra = json.parse(readFileSync(sierraPath, "utf8"));
   const casm = json.parse(readFileSync(`${TARGET}/pq_hybrid_HybridMigratableAccount.compiled_contract_class.json`, "utf8"));
+  const classHash = hash.computeContractClassHash(sierra);
+  if (state.migratableClass === classHash) return;
   const l2Max = BigInt(Math.ceil(4.2e9 * (statSync(sierraPath).size / 2.2e6) * 2.5));
-  log(`declaring HybridMigratableAccount with migrate/perform_upgrade (l2 max ${l2Max})...`);
+  log(`declaring HybridMigratableAccount ${classHash} (l2 max ${l2Max})...`);
   const nonce = await retry(() => provider.getNonceForAddress(deployerAcc.address, "latest"));
   const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: 0n, resourceBounds: await bounds(l2Max, [5n, 4n], 200000n) });
   if (d.transaction_hash) {
@@ -116,106 +115,81 @@ async function declareMigratable(deployerAcc) {
     log("declare fee:", rc.actual_fee ? fmt(BigInt(rc.actual_fee.amount)) : "n/a");
   }
   state.migratableClass = d.class_hash; state.declareTx = d.transaction_hash || null; save();
-  log("migratable class:", d.class_hash);
 }
 
-async function fund(deployerAcc, address, amount) {
-  if ((await strkBalance(address)) >= amount) return;
-  log(`  funding ${address} with ${fmt(amount)}...`);
-  await send(deployerAcc, transferCall(address, amount), 3000000n);
+async function deploy(name, w, k, deployerAcc) {
+  const braavos = !!w.impl;
+  const ctor = braavos ? [k.ecdsaPublicKey] : w.ctor(k.ecdsaPublicKey).map(num.toHex);
+  const deployClass = braavos ? BRAAVOS_BASE : w.cls;
+  const address = hash.calculateContractAddressFromHash(k.ecdsaPublicKey, deployClass, ctor, 0);
+  const s = (state[name] ||= { address }); save();
+  if (await classAt(address)) return s;
+  if ((await strkBalance(address)) < 25n * 10n ** 17n) await send(deployerAcc, transferCall(address, 25n * 10n ** 17n), 3000000n);
+  const acc = new Account({ provider, address, signer: braavos ? new BraavosDeploySigner(k.ecdsaPrivateKey, w.impl) : k.ecdsaPrivateKey });
+  const r = await retry(async () => acc.deployAccount({ classHash: deployClass, constructorCalldata: ctor, addressSalt: k.ecdsaPublicKey, contractAddress: address },
+    { tip: 0n, resourceBounds: await bounds(30000000n) }));
+  const rc = await retry(() => provider.waitForTransaction(r.transaction_hash));
+  s.deployTx = r.transaction_hash; s.deployStatus = rc.execution_status; save();
+  return s;
 }
 
-async function checkAndExercise(name, k, deployerAddress) {
-  const s = state[name];
-  const view = async (entrypoint) => (await retry(() => provider.callContract({ contractAddress: s.address, entrypoint, calldata: [] }, "latest")));
-  const cls = await classAt(s.address);
-  const registered = (await view("is_falcon_registered"))[0];
-  const ecdsaKey = (await view("get_ecdsa_public_key"))[0];
-  const falconKey = (await view("get_falcon_public_key")).slice(1);
+async function run(name, deployerAcc) {
+  const w = WALLETS[name];
+  const k = walletKeys(name, w.profile);
+  log(`\n${name}`);
+  let s;
+  try { s = await deploy(name, w, k, deployerAcc); } catch (e) {
+    (state[name] ||= {}).deployError = errTail(e); save();
+    log(`  deploy failed: ${state[name].deployError}`); return;
+  }
+  log(`  account ${s.address}${s.deployTx ? ` (deployed ${s.deployTx})` : ""}`);
+
+  if (s.migration && s.migration.status !== "SUCCEEDED") {
+    (s.failedMigrations ||= []).push(s.migration); delete s.migration; save();
+  }
+  if (!s.migration) {
+    const info = await retry(() => inspectAccount(provider, s.address));
+    s.inspectBefore = info; save();
+    log(`  inspect: ${info.kind} ${info.version || ""} migratable=${info.migratable} needs=[${info.needs}] ${info.reason}`);
+    if (!info.migratable) return;
+    // Fee bound for the migration (MIGRATION_L2_MAX at 1.5x the current price) must fit the balance.
+    const balance = await strkBalance(s.address);
+    if (balance < 9n * 10n ** 18n) await send(deployerAcc, transferCall(s.address, 9n * 10n ** 18n - balance), 3000000n);
+    s.before = { class: info.classHash, balance: (await strkBalance(s.address)).toString() }; save();
+    const calls = migrationCalls(info, k, { migratableClass: state.migratableClass, verifierClass: SHAKE_VERIFIER });
+    try {
+      s.migration = await send(new Account({ provider, address: s.address, signer: k.ecdsaPrivateKey }), calls, MIGRATION_L2_MAX); save();
+    } catch (e) { s.migrationError = errTail(e); save(); log(`  migration failed: ${s.migrationError}`); return; }
+    log(`  migration (${calls.map((c) => c.entrypoint).join(" + ")}): ${VOYAGER}/tx/${s.migration.tx} ${s.migration.status}, l2 gas ${s.migration.l2Gas}`);
+    if (s.migration.status !== "SUCCEEDED") return;
+  }
+
+  const info = await retry(() => inspectAccount(provider, s.address));
+  const read = async (ep) => retry(() => provider.callContract({ contractAddress: s.address, entrypoint: ep, calldata: [] }, "latest"));
+  const falconKey = (await read("get_falcon_public_key")).slice(1);
   s.after = {
-    class: cls, migratable: BigInt(cls) === BigInt(state.migratableClass), registered: BigInt(registered) === 1n,
-    ecdsaKeyMatchesWords: BigInt(ecdsaKey) === BigInt(k.ecdsaPublicKey),
+    kind: info.kind,
+    ecdsaKeyMatchesWords: BigInt((await read("get_ecdsa_public_key"))[0]) === BigInt(k.ecdsaPublicKey),
     falconKeyMatchesWords: falconKey.length === 29 && falconKey.every((f, i) => BigInt(f) === BigInt(k.falconFelts[i])),
-    balance: (await strkBalance(s.address)).toString(),
+    balanceDropEqualsFee: BigInt(s.before.balance) - (await strkBalance(s.address)) === BigInt(s.migration.fee),
   };
   save();
   log(`  after: ${JSON.stringify(s.after)}`);
-
   if (!s.hybridTransfer) {
-    const acc = new Account({ provider, address: s.address, signer: new HybridSigner(k) });
-    s.hybridTransfer = await send(acc, transferCall(deployerAddress, 10n ** 16n), 70000000n); save();
-    log(`  hybrid transfer: ${VOYAGER}/tx/${s.hybridTransfer.tx} (${s.hybridTransfer.status}, l2 gas ${s.hybridTransfer.l2Gas})`);
+    s.hybridTransfer = await send(new Account({ provider, address: s.address, signer: new HybridSigner(k) }), transferCall(deployerAcc.address, 10n ** 16n), 70000000n); save();
   }
+  log(`  hybrid transfer: ${VOYAGER}/tx/${s.hybridTransfer.tx} ${s.hybridTransfer.status}`);
   if (!s.ecdsaOnly) {
-    const attacker = new Account({ provider, address: s.address, signer: new EcdsaOnlySigner(k.ecdsaPrivateKey) });
     try {
-      const r = await send(attacker, transferCall(deployerAddress, 1n), 70000000n);
+      const r = await send(new Account({ provider, address: s.address, signer: new EcdsaOnlySigner(k.ecdsaPrivateKey) }), transferCall(deployerAcc.address, 1n), 70000000n);
       s.ecdsaOnly = "UNEXPECTED: accepted " + r.tx;
     } catch (e) {
-      const msg = e?.message || String(e);
-      s.ecdsaOnly = /validate/i.test(msg) && /panicked|invalid signature/i.test(msg) ? "rejected in __validate__" : "UNCLEAR: " + msg.slice(-300);
+      const m = e?.message || String(e);
+      s.ecdsaOnly = /validate/i.test(m) && /panicked|invalid signature/i.test(m) ? "rejected in __validate__" : "UNCLEAR: " + errTail(e);
     }
     save();
   }
   log(`  ECDSA-only transfer: ${s.ecdsaOnly}`);
-}
-
-async function argent(deployerAcc) {
-  const k = walletKeys("argent", "argentx");
-  const calldata = [0, k.ecdsaPublicKey, 1].map(num.toHex); // owner Signer::Starknet(pubkey), guardian None
-  const address = hash.calculateContractAddressFromHash(k.ecdsaPublicKey, ARGENT_CLASS, calldata, 0);
-  const s = (state.argent ||= { address }); save();
-  log("ARGENT account (ECDSA key from the words via Argent X derivation):", address);
-  if (!(await classAt(address))) {
-    await fund(deployerAcc, address, 3n * 10n ** 18n);
-    const acc = new Account({ provider, address, signer: k.ecdsaPrivateKey });
-    const r = await acc.deployAccount({ classHash: ARGENT_CLASS, constructorCalldata: calldata, addressSalt: k.ecdsaPublicKey, contractAddress: address },
-      { tip: 0n, resourceBounds: await bounds(20000000n) });
-    await retry(() => provider.waitForTransaction(r.transaction_hash));
-    s.deployTx = r.transaction_hash; save();
-    log(`  deployed: ${VOYAGER}/tx/${r.transaction_hash}`);
-  }
-  if (BigInt((await classAt(address)) || 0) === BigInt(ARGENT_CLASS)) {
-    s.version = (await retry(() => provider.callContract({ contractAddress: address, entrypoint: "get_version", calldata: [] }))).map((x) => Number(x)).join(".");
-    s.before = { class: ARGENT_CLASS, balance: (await strkBalance(address)).toString() }; save();
-    log(`  before: Argent ${s.version}, balance ${fmt(BigInt(s.before.balance))}`);
-    const acc = new Account({ provider, address, signer: k.ecdsaPrivateKey });
-    const data = migrationArgs(k);
-    const call = { contractAddress: address, entrypoint: "upgrade", calldata: [state.migratableClass, num.toHex(data.length), ...data] };
-    log(`  migrating: upgrade(migratable, MigrationData of ${data.length} felts), signed by the Argent owner key...`);
-    s.migration = await send(acc, call, 150000000n); save();
-    log(`  migration: ${VOYAGER}/tx/${s.migration.tx} (${s.migration.status}, l2 gas ${s.migration.l2Gas}, fee ${fmt(BigInt(s.migration.fee))})`);
-  }
-  await checkAndExercise("argent", k, deployerAcc.address);
-}
-
-async function braavos(deployerAcc) {
-  const k = walletKeys("braavos", "braavos");
-  const address = hash.calculateContractAddressFromHash(k.ecdsaPublicKey, BRAAVOS_BASE, [k.ecdsaPublicKey], 0);
-  const s = (state.braavos ||= { address }); save();
-  log("BRAAVOS account (ECDSA key from the words via BIP32 m/44'/9004'/0'/0/0):", address);
-  if (!(await classAt(address))) {
-    await fund(deployerAcc, address, 3n * 10n ** 18n);
-    const acc = new Account({ provider, address, signer: new BraavosDeploySigner(k.ecdsaPrivateKey) });
-    const r = await acc.deployAccount({ classHash: BRAAVOS_BASE, constructorCalldata: [k.ecdsaPublicKey], addressSalt: k.ecdsaPublicKey, contractAddress: address },
-      { tip: 0n, resourceBounds: await bounds(30000000n) });
-    await retry(() => provider.waitForTransaction(r.transaction_hash));
-    s.deployTx = r.transaction_hash; save();
-    log(`  deployed: ${VOYAGER}/tx/${r.transaction_hash}`);
-  }
-  if (BigInt((await classAt(address)) || 0) === BigInt(BRAAVOS_IMPL)) {
-    s.before = { class: BRAAVOS_IMPL, balance: (await strkBalance(address)).toString() }; save();
-    log(`  before: Braavos impl, balance ${fmt(BigInt(s.before.balance))}`);
-    const acc = new Account({ provider, address, signer: k.ecdsaPrivateKey });
-    const calls = [
-      { contractAddress: address, entrypoint: "upgrade", calldata: [state.migratableClass] },
-      { contractAddress: address, entrypoint: "migrate", calldata: migrationArgs(k) },
-    ];
-    log("  migrating: multicall [upgrade(migratable), migrate(...)], signed by the Braavos stark key...");
-    s.migration = await send(acc, calls, 150000000n); save();
-    log(`  migration: ${VOYAGER}/tx/${s.migration.tx} (${s.migration.status}, l2 gas ${s.migration.l2Gas}, fee ${fmt(BigInt(s.migration.fee))})`);
-  }
-  await checkAndExercise("braavos", k, deployerAcc.address);
 }
 
 async function main() {
@@ -224,9 +198,9 @@ async function main() {
   const deployerAcc = new Account({ provider, address: deployerAddress, signer: deployer.privateKey });
   log("deployer:", deployerAddress, fmt(await strkBalance(deployerAddress)), " verifier (SHAKE):", SHAKE_VERIFIER);
   await declareMigratable(deployerAcc);
-  const only = process.argv[2];
-  if (!only || only === "argent") await argent(deployerAcc);
-  if (!only || only === "braavos") await braavos(deployerAcc);
+  log("migratable class:", state.migratableClass);
+  const names = process.argv.length > 2 ? process.argv.slice(2) : Object.keys(WALLETS);
+  for (const name of names) { await run(name, deployerAcc); await sleep(2000); }
 }
 
 main().catch((e) => { console.error("ERROR:", e?.message || e); process.exit(1); });

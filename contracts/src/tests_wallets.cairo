@@ -1,6 +1,7 @@
 //! Migration of accounts that keep the classical key outside `Account_public_key`:
 //! - Argent-style `upgrade(class_hash, data)`: checks SRC6 on the new class, then library-calls
-//!   its `perform_upgrade` (argent-contracts-starknet src/upgrade.cairo).
+//!   its `perform_upgrade` (argent-contracts-starknet src/upgrade.cairo); Argent 0.3.x replaces
+//!   the class first and library-calls `execute_after_upgrade` instead.
 //! - Braavos-style `upgrade(class_hash)`: checks SRC6, replaces the class; `migrate` follows in
 //!   the same multicall (braavos-account-cairo src/upgradable/upgradable.cairo).
 //! Both paths need a proof that the owner holds both keys.
@@ -29,6 +30,53 @@ pub trait IArgentLike<TState> {
 #[starknet::interface]
 pub trait IBraavosLike<TState> {
     fn upgrade(ref self: TState, upgrade_to: ClassHash);
+}
+
+#[starknet::interface]
+pub trait IArgent03Like<TState> {
+    fn upgrade(ref self: TState, new_implementation: ClassHash, calldata: Array<felt252>) -> Array<felt252>;
+}
+
+/// Stand-in for an Argent 0.3.x account: checks SRC6, replaces the class, then library-calls
+/// `execute_after_upgrade(calldata)` on the new class (argent-contracts-starknet account-0.3.1).
+#[starknet::contract]
+pub mod Argent03LikeAccount {
+    use starknet::storage::StoragePointerWriteAccess;
+    use starknet::{ClassHash, SyscallResultTrait, get_caller_address, get_contract_address};
+    use crate::utils::interface::ISRC6_ID;
+
+    #[storage]
+    struct Storage {
+        _signer: felt252,
+    }
+
+    #[constructor]
+    fn constructor(ref self: ContractState, owner: felt252) {
+        self._signer.write(owner);
+    }
+
+    #[abi(embed_v0)]
+    impl UpgradeImpl of super::IArgent03Like<ContractState> {
+        fn upgrade(
+            ref self: ContractState, new_implementation: ClassHash, calldata: Array<felt252>,
+        ) -> Array<felt252> {
+            assert(get_caller_address() == get_contract_address(), 'only self');
+            let supported = starknet::syscalls::library_call_syscall(
+                new_implementation, selector!("supports_interface"), array![ISRC6_ID].span(),
+            )
+                .unwrap_syscall();
+            assert(*supported.at(0) == 1, 'argent/invalid-implementation');
+            starknet::syscalls::replace_class_syscall(new_implementation).unwrap_syscall();
+            let mut args = array![];
+            Serde::serialize(@calldata, ref args);
+            let ret = starknet::syscalls::library_call_syscall(
+                new_implementation, selector!("execute_after_upgrade"), args.span(),
+            )
+                .unwrap_syscall();
+            let mut ret = ret;
+            Serde::deserialize(ref ret).unwrap()
+        }
+    }
 }
 
 /// Stand-in for an Argent account: own storage name for the key, Argent's upgrade sequence.
@@ -220,6 +268,36 @@ fn argent_upgrade_with_trailing_data_reverts() {
         .upgrade(migratable(), data)
         .unwrap_err();
     assert_eq!(first(err), INVALID_DATA);
+}
+
+#[test]
+fn argent_0_3_upgrade_migrates_in_one_call() {
+    let address = deploy(Argent03LikeAccount::TEST_CLASS_HASH, ECDSA_PK);
+    let ret = IArgent03LikeDispatcher { contract_address: address }
+        .upgrade(migratable(), argent_data(proof()));
+    assert_eq!(ret.len(), 0);
+    assert_migrated(address);
+}
+
+#[test]
+#[feature("safe_dispatcher")]
+fn argent_0_3_upgrade_with_wrong_ecdsa_proof_reverts() {
+    let address = deploy(Argent03LikeAccount::TEST_CLASS_HASH, ECDSA_PK);
+    let err = IArgent03LikeSafeDispatcher { contract_address: address }
+        .upgrade(migratable(), argent_data(proof_with(WRONG_ECDSA_R, WRONG_ECDSA_S)))
+        .unwrap_err();
+    assert_eq!(first(err), INVALID_PROOF);
+}
+
+#[test]
+#[feature("safe_dispatcher")]
+fn execute_after_upgrade_after_migration_reverts() {
+    let address = deploy(Argent03LikeAccount::TEST_CLASS_HASH, ECDSA_PK);
+    IArgent03LikeDispatcher { contract_address: address }.upgrade(migratable(), argent_data(proof()));
+    let err = IMigratableSafeDispatcher { contract_address: address }
+        .execute_after_upgrade(argent_data(proof()))
+        .unwrap_err();
+    assert_eq!(first(err), ALREADY_REGISTERED);
 }
 
 #[test]
