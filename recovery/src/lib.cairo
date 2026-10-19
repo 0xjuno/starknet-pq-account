@@ -11,6 +11,7 @@
 pub mod bip32;
 pub mod constants;
 pub mod secp256k1;
+pub mod secp_table;
 pub mod sha2;
 
 #[cfg(test)]
@@ -20,7 +21,6 @@ mod tests;
 #[executable]
 fn main(profile: felt252, index: u32, seed: Array<u64>, binding: felt252) -> Array<felt252> {
     assert(seed.len() == 8, 'seed must be 64 bytes');
-    let seed_bytes = sha2::words64_to_bytes(seed.span());
-    let public_key = bip32::account_stark_key(profile, index, seed_bytes.span());
+    let public_key = bip32::account_stark_key_words(profile, index, seed.span());
     array![profile, index.into(), public_key, binding]
 }

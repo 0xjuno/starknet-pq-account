@@ -51,6 +51,19 @@ multiplication (needed for BIP32's non-hardened steps), BIP32 and grindKey in pl
 STARK-curve step uses the `ec_op` builtin. Round constants are generated from their definitions
 by [`../signer/recovery_constants.mjs`](../signer/recovery_constants.mjs).
 
+The step count matters because it sets the prover's memory. What brought it down:
+
+- SHA-512 and SHA-256 work on 64-bit and 32-bit words through the bitwise builtin. A rotation is
+  one AND on the doubled word, and sums are reduced once per word. One SHA-512 compression went
+  from about 48k steps to about 11.7k.
+- HMAC-SHA512 keeps the "Bitcoin seed" pad states precomputed, so a BIP32 master key takes 2
+  compressions instead of 4.
+- secp256k1 uses a signed fixed-base comb (31 doublings and 31 additions instead of 256 and
+  about 128), affine coordinates and a field multiply in 64-bit limbs. The table and the pad
+  states come from [`tools/gen_tables.py`](tools/gen_tables.py), which also checks them against
+  Python's `hashlib`.
+- The bootloader hashes the program's bytecode, so large functions are kept out of line.
+
 ## Results
 
 - `scarb cairo-test`: 7 tests pass. SHA-256, SHA-512 and HMAC-SHA512 (RFC 4231 case 2) match
@@ -58,8 +71,9 @@ by [`../signer/recovery_constants.mjs`](../signer/recovery_constants.mjs).
   profiles output exactly the key the wallet derivation in
   [`../signer/pq_keys.mjs`](../signer/pq_keys.mjs) produces (vectors from
   [`../signer/recovery_vectors.mjs`](../signer/recovery_vectors.mjs)).
-- `scarb execute --target bootloader`: 4,257,716 Cairo steps for the Braavos profile, 8,469,319
-  for Argent X (one extra BIP32 chain). One HMAC-SHA512 costs about 230k steps.
+- `scarb execute --target bootloader`: 545,685 Cairo steps for the Braavos profile and 911,665
+  for Argent X (one extra BIP32 chain), down from 4,257,716 and 8,469,319 in the first version.
+  The program output is the same as before for both profiles.
 - Proving: `scarb prove` does not run on Windows; in WSL with about 7 GB of memory the Stwo
   prover was killed even for a 1M-step test program. Comparable Starknet proofs are reported to
   need about 14 to 18 GB. A proof has not been produced yet.
@@ -116,4 +130,7 @@ The argument files use the public Hardhat test mnemonic
 - Only accounts whose key was derived from a seed by a known derivation can be recovered.
   Accounts created from an imported raw private key cannot.
 - The rule must be agreed and deployed before the emergency; otherwise attackers move first.
+- The code declares two corelib libfuncs itself (`bitwise`, `u128s_from_felt252`), which Scarb
+  2.18 accepts for executables. A helper that converts values known to be below 2^128 returns 0
+  on its unreachable branch instead of failing; a review should confirm the bound at every call.
 - Unaudited research code.
