@@ -1,12 +1,16 @@
 //! In-place migration: an existing classical (ECDSA) account upgrades its class to this
 //! hybrid ECDSA + Falcon-512 account WITHOUT changing its address or funds.
 //!
-//! Migration flow (one transaction, validated by the OLD account class):
-//!   multicall [ self.upgrade(HybridMigratableAccount class hash),
-//!               self.register_falcon_public_key(falcon_pk, verifier_class_hash) ]
-//! `replace_class` takes effect for subsequent calls, so the second call already runs this
-//! class and stores the Falcon key atomically. From the next transaction on, BOTH an ECDSA
-//! and a Falcon signature are required.
+//! Migration flow (one transaction, validated by the OLD account class): the old class replaces
+//! itself with this one, and both keys are written together with a proof that the owner holds
+//! them (see the per-wallet paths below). `replace_class` takes effect for subsequent calls, so a
+//! second call in the same multicall already runs this class. From the next transaction on,
+//! BOTH an ECDSA and a Falcon signature are required.
+//!
+//! First OpenZeppelin path, kept for the Sepolia demo scripts: multicall
+//!   [ self.upgrade(this class), self.register_falcon_public_key(falcon_pk, verifier) ]
+//! It does not check a possession proof, so a wrong Falcon key locks the account. Wallets
+//! should use `migrate`.
 //!
 //! The ECDSA key stays under the storage name OpenZeppelin accounts use
 //! (`Account_public_key`), so it carries over across the class replacement.

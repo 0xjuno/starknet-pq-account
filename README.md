@@ -41,7 +41,7 @@ in-place upgrade, the hybrid signature check, key backup and recovery, and brows
 
 | Piece | What it does |
 | --- | --- |
-| `HybridMigratableAccount` | Thin account class for in-place migration of an existing account, and library-calls a declared verifier class. Argent accounts migrate in one call through Argent's own `upgrade(class_hash, data)` callbacks (`perform_upgrade` from 0.4, `execute_after_upgrade` in 0.3.x); Braavos and OpenZeppelin accounts use `[upgrade, migrate]` in one transaction. Each path requires a hybrid signature by both new keys, so a wrong key reverts the migration instead of locking the account. The verifier, the Falcon key and the ECDSA key can each be replaced later by a hybrid-signed self-call. |
+| `HybridMigratableAccount` | Thin account class for in-place migration of an existing account, and library-calls a declared verifier class. Argent accounts migrate in one call through Argent's own `upgrade(class_hash, data)` callbacks (`perform_upgrade` from 0.4, `execute_after_upgrade` in 0.3.x); Braavos and OpenZeppelin accounts use `[upgrade, migrate]` in one transaction. Each path the kit uses requires a hybrid signature by both new keys, so a wrong key reverts the migration instead of locking the account. The verifier, the Falcon key and the ECDSA key can each be replaced later by a hybrid-signed self-call. |
 | Wallet integration kit | [`signer/pq_account_kit.mjs`](signer/pq_account_kit.mjs): `inspectAccount` tells which wallet an address is and whether it can move today (Argent owners and guardians, Braavos hardware signers and multisig); `migrationCalls` builds the transaction for that wallet; `HybridSigner` signs afterwards with starknet.js. |
 | `HybridPoseidonAccount`, `HybridShakeAccount` | Full hybrid accounts, also used as verifier classes: a transaction passes only if BOTH a STARK-curve ECDSA signature and a Falcon-512 signature verify over the same hash. |
 | Key backup profile | One BIP39 mnemonic restores both keys. For an Argent X / Ready account, the classical key follows Argent's own derivation (checked against argent-x test vectors), so the words the user already has restore the current key and the new Falcon key. See [`contracts/docs/key-backup-v0.md`](contracts/docs/key-backup-v0.md). |
@@ -57,20 +57,19 @@ sequenceDiagram
     participant W as Wallet (ECDSA key + Falcon key)
     participant A as Account 0x... (same address throughout)
     participant V as Verifier class (ECDSA + Falcon-512)
-    W->>A: tx 1, signed with the existing ECDSA key<br/>upgrade(HybridMigratableAccount) + register_falcon_public_key(pk, verifier)
-    Note over A: class replaced in place, funds and nonce unchanged
+    W->>A: tx 1, signed with the existing ECDSA key<br/>upgrade(HybridMigratableAccount) + migrate(keys, verifier, proof)
+    A->>V: library_call: proof = hybrid signature by both new keys
+    Note over A: class replaced in place, funds and nonce unchanged<br/>wrong key: the whole transaction reverts
     W->>A: tx 2, signed with ECDSA AND Falcon
     A->>V: library_call is_valid_signature(tx_hash, signature)
     V-->>A: VALID only if both signatures verify
     W--xA: ECDSA-only signature (forged by a quantum attacker): rejected in __validate__
 ```
 
-The two calls run in one transaction, so there is no moment where the account is upgraded but
-unprotected. If an account is upgraded without registering a key, it only accepts a single
-ECDSA-signed `register_falcon_public_key` self-call.
-
-Other wallets keep the classical key under their own storage, so the key is passed in together
-with a proof that the owner holds both keys:
+The diagram shows the Braavos and OpenZeppelin form. The two calls run in one transaction, so
+there is no moment where the account is upgraded but unprotected. Wallets keep the classical key
+under their own storage, so the key is passed in together with a proof that the owner holds both
+keys:
 
 | Wallet | Migration transaction, signed with the wallet's current key |
 | --- | --- |
@@ -107,9 +106,15 @@ Known risks, to be covered by a review before any mainnet use:
   Production signing belongs inside a wallet.
 - Falcon signing is hard to make constant-time, and the JavaScript signer has not been reviewed
   for side channels.
-- If a wallet calls `upgrade` without `migrate` in the same transaction, the account waits in a
-  bootstrap state that accepts one ECDSA-signed key registration; once ECDSA is broken, that call
-  could be front-run. The kit always puts both calls in one transaction.
+- If a wallet calls `upgrade` without `migrate` in the same transaction, an OpenZeppelin account
+  waits in a bootstrap state that accepts one ECDSA-signed key registration (which could be
+  front-run once ECDSA is broken), and a Braavos account has no usable key at all, because its
+  key is not stored where this class reads it. The kit always puts both calls in one
+  transaction, and Argent's upgrade callbacks do both in one call.
+- `register_falcon_public_key`, the first OpenZeppelin path and still used by the Sepolia demo
+  scripts, registers a Falcon key without the possession proof, so a wrong key there locks the
+  account. The kit uses `migrate`, which checks the proof. A reviewed version should drop that
+  entry point or add the proof to it.
 - The storage slots the class writes (`ecdsa_public_key`, `falcon_public_key`,
   `Migratable_verifier_class_hash`) were empty on 48 mainnet accounts across 14 wallet classes
   (`signer/storage_collision_check.mjs`), and `inspectAccount` checks them again before every
