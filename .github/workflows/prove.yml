@@ -1,7 +1,7 @@
 name: recovery proof
 
 # Proves and verifies the recovery program with Stwo for the public test mnemonic
-# (recovery/args/braavos.json). Never point this at a real seed: Stwo is not zero-knowledge.
+# (recovery/args/*.json). Never point this at a real seed: Stwo is not zero-knowledge.
 on:
   workflow_dispatch:
   push:
@@ -12,11 +12,16 @@ jobs:
   prove:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [braavos, argentx]
     steps:
       - uses: actions/checkout@v4
       - uses: software-mansion/setup-scarb@v1
         with:
           scarb-version: "2.18.0"
+          cache: false
       - name: Add swap
         run: |
           sudo fallocate -l 16G /mnt/swapfile
@@ -24,9 +29,9 @@ jobs:
           sudo mkswap /mnt/swapfile
           sudo swapon /mnt/swapfile
           nproc; free -m
-      - name: Prove (Braavos profile)
+      - name: Prove (${{ matrix.profile }} profile)
         working-directory: recovery
-        run: /usr/bin/time -v scarb prove --execute --arguments-file args/braavos.json
+        run: /usr/bin/time -v scarb prove --execute --arguments-file args/${{ matrix.profile }}.json
       - name: Verify
         working-directory: recovery
         run: |
@@ -34,5 +39,5 @@ jobs:
           ls -l target/execute/pq_recovery/execution1/proof/
       - uses: actions/upload-artifact@v4
         with:
-          name: recovery-proof-braavos
+          name: recovery-proof-${{ matrix.profile }}
           path: recovery/target/execute/pq_recovery/execution1/proof/
