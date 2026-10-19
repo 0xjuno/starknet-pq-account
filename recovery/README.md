@@ -74,15 +74,18 @@ The step count matters because it sets the prover's memory. What brought it down
 - `scarb execute --target bootloader`: 545,685 Cairo steps for the Braavos profile and 911,665
   for Argent X (one extra BIP32 chain), down from 4,257,716 and 8,469,319 in the first version.
   The program output is the same as before for both profiles.
-- Proving: `scarb prove` does not run on Windows; in WSL with about 7 GB of memory the Stwo
-  prover was killed even for a 1M-step test program. Comparable Starknet proofs are reported to
-  need about 14 to 18 GB. A proof has not been produced yet.
+- Proving: on a standard GitHub Actions runner (16 GB of memory), `scarb prove` makes a Stwo
+  proof for each profile in about one minute with a peak of about 15 GB, and `scarb verify`
+  accepts it ([`prove.yml`](../.github/workflows/prove.yml); each run keeps the proof files,
+  about 11 MB). A machine with about 7 GB free runs out of memory. These proofs are for the
+  public test mnemonic only and are not zero-knowledge (see below).
 
 ```sh
 cd recovery
 scarb cairo-test
 scarb execute --arguments-file args/braavos.json --print-program-output --print-resource-usage --target bootloader --output cairo-pie
-scarb prove --execute --arguments-file args/braavos.json   # Linux or macOS, enough memory
+scarb prove --execute --arguments-file args/braavos.json   # Linux or macOS, about 16 GB of memory
+scarb verify --execution-id 1
 ```
 
 The argument files use the public Hardhat test mnemonic

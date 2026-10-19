@@ -48,7 +48,7 @@ in-place upgrade, the hybrid signature check, key backup and recovery, and brows
 | Browser signer | Falcon-512 signing in the browser with [@noble/post-quantum](https://github.com/paulmillr/noble-post-quantum) (pure JS), converted by `signer/falcon_adapter.mjs` into the layout of the standard SHAKE-256 on-chain verifier. Demo page: [`docs/index.html`](docs/index.html). |
 | Passkey lock | After one restore from the words, the page can lock the 64-byte seed with a passkey: AES-GCM under a key derived (HKDF-SHA256) from the passkey's WebAuthn PRF output, stored in that browser only. Later visits unlock with Face ID, fingerprint, Windows Hello or a security key; the words stay the backup. |
 | Demo scripts | Sepolia scripts for deployment, migration, negative tests, backup/recovery and the browser path (`signer/`). |
-| Quantum emergency recovery (research) | [`recovery/`](recovery/): a Cairo program that derives a wallet's Starknet key from a BIP39 seed (Braavos and Argent X derivations) so that knowledge of the seed can be proven with a STARK, for accounts that never migrated. Proof generation and the zero-knowledge requirement are open; see its README. |
+| Quantum emergency recovery (research) | [`recovery/`](recovery/): a Cairo program that derives a wallet's Starknet key from a BIP39 seed (Braavos and Argent X derivations) so that knowledge of the seed can be proven with a STARK, for accounts that never migrated. CI generates and verifies Stwo proofs of both derivations for a public test mnemonic; zero knowledge, which a real seed needs, is still open. See its README. |
 
 ## How migration works
 
