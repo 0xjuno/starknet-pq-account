@@ -7,7 +7,7 @@ on:
 
 jobs:
   contracts:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: software-mansion/setup-scarb@v1
@@ -21,7 +21,7 @@ jobs:
         run: scarb cairo-test
 
   recovery:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: software-mansion/setup-scarb@v1
