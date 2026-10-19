@@ -13,7 +13,7 @@ from the browser.
 
 > **Experimental. Unaudited. Testnet only.** Do not hold real funds with these contracts.
 
-**Try it:** [johyeonchae.github.io/starknet-pq-account](https://johyeonchae.github.io/starknet-pq-account/)
+**Try it:** [0xjuno.github.io/starknet-pq-account](https://0xjuno.github.io/starknet-pq-account/)
 and press "Use the public demo account". The page restores both keys inside the tab and sends a
 hybrid-signed Sepolia transfer.
 
