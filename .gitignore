@@ -12,3 +12,5 @@ node_modules/
 __pycache__/
 *.pyc
 .snfoundry_cache/
+recovery/target/
+recovery/target-linux/

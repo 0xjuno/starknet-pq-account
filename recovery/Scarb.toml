@@ -1,0 +1,18 @@
+[package]
+name = "pq_recovery"
+version = "0.1.0"
+edition = "2024_07"
+cairo-version = "2.18.0"
+license = "MIT"
+description = "Quantum emergency recovery for Starknet accounts: STARK proof of seed knowledge (research prototype)"
+
+[executable]
+
+[cairo]
+enable-gas = false
+
+[dependencies]
+cairo_execute = "2.18.0"
+
+[dev-dependencies]
+cairo_test = "2.18.0"
