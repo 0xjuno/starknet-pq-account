@@ -20,6 +20,8 @@ const SEPOLIA_TESTED = new Set([
   "0x3957f9f5a1cbfe918cedc2015c85200ca51a5f7506ecb6de98a5207b759bf8a", // Braavos 1.2.0
   "0x5b4b537eaa2399e3aa99c4e2e0208ebd6c71bc1467938cd52c798c601e43564", // OpenZeppelin
   "0xe2eb8f5672af4e6a4e8a8f1b44989685e668489b0a25437733756c5a34a1d6", // OpenZeppelin
+  "0x663fc01a0dbe1bacc4cd2a4c856eb9784b255a20988aa33d4d52b6fc20bd024", // Xverse (ArgentAccountXverse)
+  "0x1c0bb51e2ce73dc007601a1e7725453627254016c28f118251a71bbb0507fcb", // OKX (OkxAccount)
 ].map((h) => BigInt(h)));
 const FROM = process.argv[2] === "--from" ? JSON.parse(readFileSync(process.argv[3], "utf8")) : null;
 const TARGET = FROM ? 0 : Number(process.argv[2] || 400);

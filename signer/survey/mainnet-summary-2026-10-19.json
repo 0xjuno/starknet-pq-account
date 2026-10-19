@@ -12,32 +12,29 @@
     "argent 0.5.0": 2,
     "openzeppelin": 94,
     "argent 0.3.1": 8,
-    "argent 0.4.0": 194,
+    "argent 0.4.0": 195,
     "fixed-key": 23,
     "braavos 001.002.000": 20,
-    "argent 0.3.0": 39,
+    "argent 0.3.0": 41,
     "braavos 001.000.000": 5,
     "other": 2,
     "braavos 001.001.000": 1,
-    "cairo0": 9,
-    "argent-other 0.3.0": 2,
-    "argent-other 0.4.0": 1
+    "cairo0": 9
   },
   "notMigratableReasons": {
-    "(migratable)": 359,
+    "(migratable)": 362,
     "fixed-key account": 23,
     "other account": 2,
     "Braavos with a hardware or passkey signer (would be dropped)": 4,
-    "Cairo 0 account: the wallet must upgrade it to Cairo 1 first": 9,
-    "argent-other account": 3
+    "Cairo 0 account: the wallet must upgrade it to Cairo 1 first": 9
   },
-  "migratable": 359,
-  "migratableShare": "89.8%",
-  "migratableWithoutExtraSignatures": 356,
-  "migratableWithoutExtraSignaturesShare": "89.0%",
+  "migratable": 362,
+  "migratableShare": "90.5%",
+  "migratableWithoutExtraSignatures": 359,
+  "migratableWithoutExtraSignaturesShare": "89.8%",
   "needsGuardian": 3,
-  "migratableOnSepoliaTestedClasses": 350,
-  "migratableOnSepoliaTestedClassesShare": "87.5%",
+  "migratableOnSepoliaTestedClasses": 353,
+  "migratableOnSepoliaTestedClassesShare": "88.3%",
   "migratableTxShare": "93.2%",
-  "takenAt": "2026-10-19T00:58:51.527Z"
+  "takenAt": "2026-10-19T02:33:47.198Z"
 }

@@ -1,0 +1,36 @@
+{
+  "network": "starknet-mainnet",
+  "takenAt": "2026-10-19T03:08:49.717Z",
+  "pools": 484,
+  "delegatorAccounts": 882,
+  "positions": 1128,
+  "stakedBtcInPools": 621.3352,
+  "migratableBtc": 563.55,
+  "migratableShare": "90.7%",
+  "migratableAccounts": 788,
+  "btcByToken": {
+    "SolvBTC": 409.7785,
+    "WBTC": 174.7826,
+    "strkBTC": 30.4087,
+    "tBTC": 5.3057,
+    "LBTC": 1.0597
+  },
+  "btcByAccountKind": {
+    "argent 0.4.0": 545.8634,
+    "other": 44.8511,
+    "braavos 001.002.000": 27.7723,
+    "openzeppelin": 1.9939,
+    "argent-other 0.1.1": 0.8288,
+    "argent 0.3.1": 0.0245,
+    "argent 0.5.0": 0.0007,
+    "cairo0": 0.0004,
+    "braavos 001.000.000": 0.0001,
+    "braavos 001.001.000": 0
+  },
+  "btcNotMigratableByReason": {
+    "other account": 44.8511,
+    "Braavos with a hardware or passkey signer (would be dropped)": 12.1049,
+    "argent-other account": 0.8288,
+    "Cairo 0 account: the wallet must upgrade it to Cairo 1 first": 0.0004
+  }
+}

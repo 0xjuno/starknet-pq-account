@@ -59,6 +59,7 @@ export function migrationCalls(info, keys, { migratableClass, verifierClass }) {
 // ---------------------------------------------------------------- account inspection
 
 const classCache = new Map();
+const ARGENT_NAMES = ["ArgentAccount", "ArgentAccountXverse", "OkxAccount"];
 
 function abiFunctions(abi) {
   const list = typeof abi === "string" ? JSON.parse(abi) : abi || [];
@@ -90,7 +91,8 @@ export async function classifyClass(provider, classHash, sampleAddress) {
       ["new_implementation,data", "new_implementation,calldata"].includes(up?.join())) {
       const name = shortStr((await view(provider, sampleAddress, "get_name"))[0]);
       const v = await view(provider, sampleAddress, "get_version");
-      out = { kind: name === "ArgentAccount" ? "argent" : "argent-other", name, version: v.slice(0, 3).map(Number).join(".") };
+      // Argent code under other names, with the same upgrade callbacks: Xverse (0.4.0 base), OKX (0.3.0 base).
+      out = { kind: ARGENT_NAMES.includes(name) ? "argent" : "argent-other", name, version: v.slice(0, 3).map(Number).join(".") };
     } else if (f.has("get_signers") && f.has("get_multisig_threshold") && up?.join() === "upgrade_to") {
       out = { kind: "braavos", version: shortStr((await view(provider, sampleAddress, "get_version"))[0]) };
     } else if (up?.join() === "new_class_hash" && (f.has("get_public_key") || f.has("getPublicKey"))) {

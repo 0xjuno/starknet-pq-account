@@ -4,11 +4,12 @@ Move an existing Starknet account (OpenZeppelin, Argent / Ready, Braavos) to pos
 signatures without changing its address or funds, back up both keys with one mnemonic, and sign
 from the browser.
 
-- Real accounts of nine wallet classes (Argent 0.3.0 to 0.5.0, Braavos 1.0 to 1.2, two
-  OpenZeppelin classes) were migrated on Sepolia.
-- Of 400 accounts that sent mainnet transactions in a 0.8-hour window, 359 (89.8%) use a class
-  this kit migrates; 350 (87.5%) are on the nine tested classes. See
-  [`contracts/docs/wallet-coverage.md`](contracts/docs/wallet-coverage.md).
+- Real accounts of eleven wallet classes (Argent 0.3.0 to 0.5.0, Xverse, OKX, Braavos 1.0 to
+  1.2, two OpenZeppelin classes) were migrated on Sepolia.
+- Of the 621 BTC delegated in Starknet staking, 564 BTC (90.7%) sits in accounts this kit
+  migrates today, including all ten largest delegators.
+- Of 400 accounts that sent mainnet transactions in a 0.8-hour window, 362 (90.5%) use a class
+  this kit migrates. See [`contracts/docs/wallet-coverage.md`](contracts/docs/wallet-coverage.md).
 
 > **Experimental. Unaudited. Testnet only.** Do not hold real funds with these contracts.
 
@@ -70,8 +71,8 @@ with a proof that the owner holds both keys:
 
 | Wallet | Migration transaction, signed with the wallet's current key |
 | --- | --- |
-| Argent / Ready 0.4, 0.5 | `upgrade(HybridMigratableAccount, MigrationData)`: Argent checks SRC6 on the new class and library-calls its `perform_upgrade`, which replaces the class and registers both keys in the same call |
-| Argent 0.3.0, 0.3.1 | Same call. Argent replaces the class itself, then library-calls `execute_after_upgrade` with the same data |
+| Argent / Ready 0.4, 0.5; Xverse | `upgrade(HybridMigratableAccount, MigrationData)`: Argent checks SRC6 on the new class and library-calls its `perform_upgrade`, which replaces the class and registers both keys in the same call |
+| Argent 0.3.0, 0.3.1; OKX | Same call. Argent replaces the class itself, then library-calls `execute_after_upgrade` with the same data |
 | Braavos 1.0 to 1.2, OpenZeppelin | `[upgrade(HybridMigratableAccount), migrate(ecdsa_key, falcon_key, verifier, proof)]` |
 
 `proof` is a hybrid signature over `poseidon(["starknet-pq-register-v1", ecdsa_key, ...falcon_key])`.
@@ -130,9 +131,9 @@ Reproduce with `node signer/mainnet_cost.mjs`.
   accounts were deployed from fresh words with each wallet's derivation, then migrated. After
   migration the stored classical and Falcon keys equal the keys derived from those words, and
   each balance dropped by exactly the migration fee.
-- The same check on one real account of each of nine wallet classes in active mainnet use
-  (Argent 0.3.0, 0.3.1, 0.4.0, 0.5.0; Braavos 1.0.0, 1.1.0, 1.2.0; two OpenZeppelin classes),
-  driven only by `pq_account_kit.mjs`: all nine migrated, matched their words, sent a
+- The same check on one real account of each of eleven wallet classes in active mainnet use
+  (Argent 0.3.0, 0.3.1, 0.4.0, 0.5.0; Xverse; OKX; Braavos 1.0.0, 1.1.0, 1.2.0; two OpenZeppelin
+  classes), driven only by `pq_account_kit.mjs`: all eleven migrated, matched their words, sent a
   hybrid-signed transfer and rejected an ECDSA-only one. Transactions in
   [`contracts/docs/wallet-coverage.md`](contracts/docs/wallet-coverage.md).
 - ECDSA-only transfers from migrated accounts are rejected in `__validate__`.
@@ -170,8 +171,8 @@ Account: [`0x343e3df5…c0db`](https://sepolia.voyager.online/contract/0x343e3df
   sessions are not available yet.
 - Wallet migrations were tested on accounts with a single STARK key. An Argent account with a
   guardian needs the guardian's co-signature on the upgrade; multisig and hardware-signer
-  accounts are not covered. Argent-based wallets under other names (`OkxAccount`,
-  `ArgentAccountXverse`) and accounts without a self-upgrade entry point are not covered.
+  accounts are not covered, and neither are accounts without a self-upgrade entry point. Xverse
+  and OKX do not publish their key derivation, so for them only the upgrade path is tested.
 - The Braavos key derivation matches third-party scripts, not published Braavos code.
 - The passkey lock needs the WebAuthn PRF extension. Support differs by device, browser and
   password manager; it was tested with a Chromium virtual authenticator, not yet across real
@@ -204,8 +205,9 @@ node browser_setup.mjs  # SHAKE verifier + account for the browser demo (docs/in
 node mainnet_cost.mjs   # fee per transfer at current mainnet prices
 node passkey_e2e.mjs    # demo page + virtual passkey: lock, reload, unlock, send (Chromium)
 node wallet_profiles_check.mjs  # offline: Argent X derivation vs argent-x test vectors
-node wallet_migrate_demo.mjs    # deploy and migrate real accounts of nine wallet classes
+node wallet_migrate_demo.mjs    # deploy and migrate real accounts of eleven wallet classes
 node mainnet_survey.mjs 400     # read-only: which recent mainnet senders could migrate
+node btc_staking_coverage.mjs   # read-only: how much staked BTC sits in migratable accounts
 ```
 
 ## Credits

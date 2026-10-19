@@ -29,6 +29,10 @@ const WALLETS = {
   "argent-0.3.1": { profile: "argentx", cls: "0x29927c8af6bccf3f6fda035981e765a7bdbf18a2dc0d630494f8758aa908e2b", ctor: (pk) => [pk, 0] },
   "argent-0.4.0": { profile: "argentx", cls: "0x036078334509b514626504edc9fb252328d1a240e4e948bef8d0c08dff45927f", ctor: (pk) => [0, pk, 1] },
   "argent-0.5.0": { profile: "argentx", cls: "0x073414441639dcd11d1846f287650a00c60c416b9d3ba45d31c651672125b2c2", ctor: (pk) => [0, pk, 1] },
+  // Argent forks shipped by other wallets. Their seed derivation is not published, so these use
+  // the "pq" profile: the test covers the upgrade path, not key derivation.
+  "xverse": { profile: "pq", cls: "0x663fc01a0dbe1bacc4cd2a4c856eb9784b255a20988aa33d4d52b6fc20bd024", ctor: (pk) => [0, pk, 1] },
+  "okx": { profile: "pq", cls: "0x1c0bb51e2ce73dc007601a1e7725453627254016c28f118251a71bbb0507fcb", ctor: (pk) => [pk, 0] },
   "braavos-1.0.0": { profile: "braavos", impl: "0x816dd0297efc55dc1e7559020a3a825e81ef734b558f03c83325d4da7e6253" },
   "braavos-1.1.0": { profile: "braavos", impl: "0x2c8c7e6fbcfb3e8e15a46648e8914c6aa1fc506fc1e7fb3d1e19630716174bc" },
   "braavos-1.2.0": { profile: "braavos", impl: "0x3957f9f5a1cbfe918cedc2015c85200ca51a5f7506ecb6de98a5207b759bf8a" },
