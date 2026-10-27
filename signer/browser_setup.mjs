@@ -1,5 +1,5 @@
 // Prepares the browser-wallet demo on Sepolia. TESTNET ONLY.
-//   1. declare HybridShakeAccount (standard FIPS 206 SHAKE-256 Falcon verifier) as the verifier class
+//   1. declare HybridShakeAccount (round-three Falcon-512 with SHAKE-256 hash-to-point) as the verifier class
 //   2. new mnemonic -> keys (pq_keys.mjs, profile v0.1); OZ account funded, deployed, migrated in
 //      place with the SHAKE verifier and the noble-derived Falcon key
 //   3. one hybrid transfer signed exactly the way the browser page signs (noble + adapter)

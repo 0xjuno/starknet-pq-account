@@ -232,8 +232,9 @@ pub mod HybridPoseidonAccount {
     }
 }
 
-/// Hybrid account using the standard FIPS 206 SHAKE-256 Falcon verifier (interoperable
-/// with any standards-compliant Falcon signer; ~4x the verification gas of Poseidon).
+/// Hybrid account using the round-three Falcon-512 verifier with SHAKE-256 hash-to-point
+/// (interoperable with Falcon-512 signers using that hash-to-point, such as falcon.py and the
+/// browser signer; ~4x the verification gas of Poseidon). Not FN-DSA (FIPS 206).
 #[starknet::contract(account)]
 pub mod HybridShakeAccount {
     use pqbench_falcon_512::Falcon512ShakeVerifier;
