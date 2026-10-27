@@ -26,6 +26,8 @@ const save = () => writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 const log = (...a) => console.log(...a);
 const fmt = (wei) => (Number(wei) / 1e18).toFixed(6) + " STRK";
 const provider = new RpcProvider({ nodeUrl: RPC });
+// Sepolia evicts zero-tip transactions from the mempool; set in main() from recent blocks.
+let TIP = 0n;
 
 // Same signer the browser page uses: STARK-curve ECDSA + noble Falcon-512 (SHAKE-256 hash-to-point).
 class BrowserHybridSigner extends Signer {
@@ -57,6 +59,7 @@ async function main() {
   const deployer = JSON.parse(readFileSync(`${KEYS}/deployer-ecdsa.json`, "utf8"));
   const deployerAddress = readFileSync(`${KEYS}/deployer-address.txt`, "utf8").trim();
   const deployerAcc = new Account({ provider, address: deployerAddress, signer: deployer.privateKey });
+  TIP = (await provider.getEstimateTip("latest", { maxBlocks: 5 })).recommendedTip;
   const balance = await strkBalance(deployerAddress);
   log("deployer:", fmt(balance));
 
@@ -70,7 +73,7 @@ async function main() {
     const sierra = json.parse(readFileSync(`${TARGET}/pq_hybrid_HybridShakeAccount.contract_class.json`, "utf8"));
     const casm = json.parse(readFileSync(`${TARGET}/pq_hybrid_HybridShakeAccount.compiled_contract_class.json`, "utf8"));
     const nonce = await provider.getNonceForAddress(deployerAddress, "latest");
-    const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: 0n, resourceBounds: await bounds(l2Max, [5n, 4n], 200000n) });
+    const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: TIP, resourceBounds: await bounds(l2Max, [5n, 4n], 200000n) });
     if (d.transaction_hash) {
       const rc = await provider.waitForTransaction(d.transaction_hash);
       log("declare fee:", rc.actual_fee ? fmt(BigInt(rc.actual_fee.amount)) : "n/a");
@@ -90,11 +93,11 @@ async function main() {
   if (!(await classAt(address))) {
     if ((await strkBalance(address)) < 8n * 10n ** 18n) {
       const nonce = await provider.getNonceForAddress(deployerAddress, "latest");
-      const t = await deployerAcc.execute(transferCall(address, 9n * 10n ** 18n), { nonce, tip: 0n });
+      const t = await deployerAcc.execute(transferCall(address, 9n * 10n ** 18n), { nonce, tip: TIP });
       await provider.waitForTransaction(t.transaction_hash);
     }
     const oz = new Account({ provider, address, signer: keys.ecdsaPrivateKey });
-    const r = await oz.deployAccount({ classHash: OZ_ACCOUNT_CLASS, constructorCalldata: [keys.ecdsaPublicKey], addressSalt: keys.ecdsaPublicKey, contractAddress: address }, { tip: 0n });
+    const r = await oz.deployAccount({ classHash: OZ_ACCOUNT_CLASS, constructorCalldata: [keys.ecdsaPublicKey], addressSalt: keys.ecdsaPublicKey, contractAddress: address }, { tip: TIP });
     await provider.waitForTransaction(r.transaction_hash);
     state.deployTx = r.transaction_hash; save();
     log("OZ account deployed:", `${VOYAGER}/tx/${r.transaction_hash}`);
@@ -106,7 +109,7 @@ async function main() {
     const m = await oz.execute([
       { contractAddress: address, entrypoint: "upgrade", calldata: [MIGRATABLE_CLASS] },
       { contractAddress: address, entrypoint: "migrate", calldata: [keys.ecdsaPublicKey, num.toHex(falconFelts.length), ...falconFelts, state.shakeClass, num.toHex(proof.length), ...proof] },
-    ], { nonce, tip: 0n, resourceBounds: await bounds(250000000n) });
+    ], { nonce, tip: TIP, resourceBounds: await bounds(250000000n) });
     await provider.waitForTransaction(m.transaction_hash);
     state.migrationTx = m.transaction_hash; save();
     log("migrated (SHAKE verifier):", `${VOYAGER}/tx/${m.transaction_hash}`);
@@ -118,7 +121,7 @@ async function main() {
   if (!state.nodeTransferTx) {
     const acc = new Account({ provider, address, signer: new BrowserHybridSigner(keys) });
     const nonce = await provider.getNonceForAddress(address, "latest");
-    const x = await acc.execute(transferCall(deployerAddress, 10n ** 16n), { nonce, tip: 0n, resourceBounds: await bounds(120000000n) });
+    const x = await acc.execute(transferCall(deployerAddress, 10n ** 16n), { nonce, tip: TIP, resourceBounds: await bounds(120000000n) });
     const rc = await provider.waitForTransaction(x.transaction_hash);
     state.nodeTransferTx = x.transaction_hash; state.nodeTransferResources = rc.execution_resources || null;
     state.nodeTransferFee = rc.actual_fee ? rc.actual_fee.amount : null; save();

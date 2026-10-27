@@ -54,6 +54,8 @@ const transferCall = (to, amount) => ({ contractAddress: STRK, entrypoint: "tran
 const deployer = JSON.parse(readFileSync(`${KEYS}/deployer-ecdsa.json`, "utf8"));
 const deployerAddress = readFileSync(`${KEYS}/deployer-address.txt`, "utf8").trim();
 const deployerAcc = new Account({ provider, address: deployerAddress, signer: deployer.privateKey });
+// Sepolia evicts zero-tip transactions from the mempool; pay the tip recent blocks paid.
+const TIP = (await provider.getEstimateTip("latest", { maxBlocks: 5 })).recommendedTip;
 log("deployer:", fmt(await strkBalance(deployerAddress)));
 
 // 1. current migratable class
@@ -61,7 +63,7 @@ if (!state.migratableClass) {
   const sierra = json.parse(readFileSync(`${TARGET}/pq_hybrid_HybridMigratableAccount.contract_class.json`, "utf8"));
   const casm = json.parse(readFileSync(`${TARGET}/pq_hybrid_HybridMigratableAccount.compiled_contract_class.json`, "utf8"));
   const nonce = await provider.getNonceForAddress(deployerAddress, "latest");
-  const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: 0n, resourceBounds: await bounds(800000000n, [5n, 4n], 200000n) });
+  const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: TIP, resourceBounds: await bounds(800000000n, [5n, 4n], 200000n) });
   if (d.transaction_hash) { const rc = await provider.waitForTransaction(d.transaction_hash); log("declare fee:", rc.actual_fee ? fmt(BigInt(rc.actual_fee.amount)) : "n/a"); }
   state.migratableClass = d.class_hash; save();
   log("migratable class (with ECDSA rotation):", d.class_hash);
@@ -77,12 +79,12 @@ log("public demo account:", address);
 if (!(await classAt(address))) {
   if ((await strkBalance(address)) < FUND / 2n) {
     const nonce = await provider.getNonceForAddress(deployerAddress, "latest");
-    const t = await deployerAcc.execute(transferCall(address, FUND), { nonce, tip: 0n });
+    const t = await deployerAcc.execute(transferCall(address, FUND), { nonce, tip: TIP });
     await provider.waitForTransaction(t.transaction_hash);
   }
   await sleep(1500);
   const oz = new Account({ provider, address, signer: keys.ecdsaPrivateKey });
-  const r = await oz.deployAccount({ classHash: OZ_ACCOUNT_CLASS, constructorCalldata: [keys.ecdsaPublicKey], addressSalt: keys.ecdsaPublicKey, contractAddress: address }, { tip: 0n });
+  const r = await oz.deployAccount({ classHash: OZ_ACCOUNT_CLASS, constructorCalldata: [keys.ecdsaPublicKey], addressSalt: keys.ecdsaPublicKey, contractAddress: address }, { tip: TIP });
   await provider.waitForTransaction(r.transaction_hash);
   state.deployTx = r.transaction_hash; save();
   log("OZ account deployed:", `${VOYAGER}/tx/${r.transaction_hash}`);
@@ -95,7 +97,7 @@ if ((await classAt(address)) === num.toHex(OZ_ACCOUNT_CLASS)) {
   const m = await oz.execute([
     { contractAddress: address, entrypoint: "upgrade", calldata: [state.migratableClass] },
     { contractAddress: address, entrypoint: "migrate", calldata: [keys.ecdsaPublicKey, num.toHex(falconFelts.length), ...falconFelts, SHAKE_CLASS, num.toHex(proof.length), ...proof] },
-  ], { nonce, tip: 0n, resourceBounds: await bounds(250000000n) });
+  ], { nonce, tip: TIP, resourceBounds: await bounds(250000000n) });
   await provider.waitForTransaction(m.transaction_hash);
   state.migrationTx = m.transaction_hash; save();
   log("migrated in place:", `${VOYAGER}/tx/${m.transaction_hash}`);
@@ -106,7 +108,7 @@ await sleep(1500);
 if (!state.transferTx) {
   const acc = new Account({ provider, address, signer: new BrowserHybridSigner(keys) });
   const nonce = await provider.getNonceForAddress(address, "latest");
-  const x = await acc.execute(transferCall(deployerAddress, 10n ** 16n), { nonce, tip: 0n, resourceBounds: await bounds(70000000n, [5n, 4n]) });
+  const x = await acc.execute(transferCall(deployerAddress, 10n ** 16n), { nonce, tip: TIP, resourceBounds: await bounds(70000000n, [5n, 4n]) });
   const rc = await provider.waitForTransaction(x.transaction_hash);
   state.transferTx = x.transaction_hash; save();
   log("browser-style transfer:", `${VOYAGER}/tx/${x.transaction_hash}`, rc.execution_status || "");
