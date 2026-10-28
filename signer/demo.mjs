@@ -46,6 +46,8 @@ class HybridSigner extends Signer {
 }
 
 const provider = new RpcProvider({ nodeUrl: RPC });
+// Sepolia evicts zero-tip transactions from the mempool; set in main() from recent blocks.
+let TIP = 0n;
 
 async function strkBalance(address) {
   const r = await provider.callContract({ contractAddress: STRK, entrypoint: "balance_of", calldata: [address] });
@@ -71,6 +73,7 @@ async function main() {
   }
 
   const deployerAcc = new Account({ provider, address: deployerAddress, signer: deployer.privateKey });
+  TIP = (await provider.getEstimateTip("latest", { maxBlocks: 5 })).recommendedTip;
 
   // 1. deployer account
   if (!(await isDeployed(deployerAddress))) {
@@ -78,7 +81,7 @@ async function main() {
     const r = await deployerAcc.deployAccount({
       classHash: OZ_ACCOUNT_CLASS, constructorCalldata: [deployer.publicKey],
       addressSalt: deployer.publicKey, contractAddress: deployerAddress,
-    }, { tip: 0n });
+    }, { tip: TIP });
     await provider.waitForTransaction(r.transaction_hash);
     state.deployerDeployTx = r.transaction_hash; save();
     log("deployer deployed:", `${VOYAGER}/tx/${r.transaction_hash}`);
@@ -100,7 +103,7 @@ async function main() {
       l2_gas: { max_amount: 4500000000n, max_price_per_unit: (BigInt(blk.l2_gas_price.price_in_fri) * 5n) / 4n },
     };
     log("gas prices (fri):", blk.l1_gas_price.price_in_fri, blk.l1_data_gas_price.price_in_fri, blk.l2_gas_price.price_in_fri);
-    const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: 0n, resourceBounds });
+    const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: TIP, resourceBounds });
     if (d.transaction_hash) await provider.waitForTransaction(d.transaction_hash);
     state.classHash = d.class_hash; state.declareTx = d.transaction_hash || null; save();
     log("class hash:", d.class_hash);
@@ -119,7 +122,7 @@ async function main() {
     const t = await deployerAcc.execute({
       contractAddress: STRK, entrypoint: "transfer",
       calldata: CallData.compile({ recipient: hybridAddress, amount: cairo.uint256(3n * 10n ** 18n) }),
-    }, { nonce, tip: 0n });
+    }, { nonce, tip: TIP });
     await provider.waitForTransaction(t.transaction_hash);
   }
 
@@ -136,7 +139,7 @@ async function main() {
     const r = await hybridAcc.deployAccount({
       classHash: state.classHash, constructorCalldata: calldata,
       addressSalt: HYBRID_SALT, contractAddress: hybridAddress,
-    }, { tip: 0n, resourceBounds: hybridBounds });
+    }, { tip: TIP, resourceBounds: hybridBounds });
     await provider.waitForTransaction(r.transaction_hash);
     state.hybridDeployTx = r.transaction_hash; save();
     log("hybrid deployed:", `${VOYAGER}/tx/${r.transaction_hash}`);
@@ -148,7 +151,7 @@ async function main() {
   const x = await hybridAcc.execute({
     contractAddress: STRK, entrypoint: "transfer",
     calldata: CallData.compile({ recipient: deployerAddress, amount: cairo.uint256(10n ** 17n) }),
-  }, { nonce: hnonce, tip: 0n, resourceBounds: hybridBounds });
+  }, { nonce: hnonce, tip: TIP, resourceBounds: hybridBounds });
   const receipt = await provider.waitForTransaction(x.transaction_hash);
   state.hybridTransferTx = x.transaction_hash; save();
   log("transfer:", `${VOYAGER}/tx/${x.transaction_hash}`);
