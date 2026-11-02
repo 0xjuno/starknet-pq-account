@@ -8,11 +8,15 @@
 use starknet::account::Call;
 use starknet::syscalls::deploy_syscall;
 use starknet::{ClassHash, ContractAddress, SyscallResultTrait};
-use crate::hybrid::HybridShakeAccount;
+use crate::hybrid::{HybridPoseidonAccount, HybridShakeAccount};
 use crate::migratable::LegacyOzLikeAccount::{ILegacyDispatcher, ILegacyDispatcherTrait};
 use crate::migratable::{
     HybridMigratableAccount, IMigratableDispatcher, IMigratableDispatcherTrait,
-    LegacyOzLikeAccount,
+    LegacyOzLikeAccount, rotation_hash,
+};
+use crate::tests_rotation_fixture::{
+    ECDSA_ROTATION_HASH, FALCON_ROTATION_HASH, ecdsa_rotation_proof, falcon_pk_b,
+    falcon_rotation_proof,
 };
 use crate::tests_wallets_fixture::{
     ECDSA_PK, ECDSA_R, ECDSA_S, REGISTRATION_HASH, WRONG_ECDSA_PK, WRONG_ECDSA_R, WRONG_ECDSA_S,
@@ -200,10 +204,17 @@ fn bootstrap_rejects_any_other_call() {
 }
 
 #[test]
+fn rotation_hash_matches_off_chain_signer() {
+    assert_eq!(rotation_hash(ECDSA_PK, falcon_pk_b().span()), FALCON_ROTATION_HASH);
+    assert_eq!(rotation_hash(WRONG_ECDSA_PK, falcon_pk().span()), ECDSA_ROTATION_HASH);
+}
+
+#[test]
 fn rotate_ecdsa_key_switches_the_classical_key() {
     let address = deploy_legacy();
     migrate(address);
-    IMigratableDispatcher { contract_address: address }.rotate_ecdsa_public_key(WRONG_ECDSA_PK);
+    IMigratableDispatcher { contract_address: address }
+        .rotate_ecdsa_public_key(WRONG_ECDSA_PK, ecdsa_rotation_proof());
     let account = IHybridAccountDispatcher { contract_address: address };
     // The old ECDSA half no longer verifies, the new one does (Falcon half unchanged).
     assert_eq!(account.is_valid_signature(MSG, hybrid_sig()), 0);
@@ -212,50 +223,134 @@ fn rotate_ecdsa_key_switches_the_classical_key() {
         starknet::VALIDATED,
     );
     assert_eq!(
+        account.is_valid_signature(ECDSA_ROTATION_HASH, ecdsa_rotation_proof()),
+        starknet::VALIDATED,
+    );
+    assert_eq!(
         IMigratableDispatcher { contract_address: address }.get_ecdsa_public_key(), WRONG_ECDSA_PK,
     );
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected: ('Migratable: invalid key proof', 'ENTRYPOINT_FAILED'))]
+fn rotate_ecdsa_key_without_proof_by_new_key_fails() {
+    let address = deploy_legacy();
+    migrate(address);
+    // Signed by the current keys, not by the new ECDSA key.
+    IMigratableDispatcher { contract_address: address }
+        .rotate_ecdsa_public_key(WRONG_ECDSA_PK, hybrid_sig());
+}
+
+#[test]
+#[should_panic(expected: ('Migratable: invalid key proof', 'ENTRYPOINT_FAILED'))]
+fn rotate_ecdsa_key_with_proof_over_other_message_fails() {
+    let address = deploy_legacy();
+    migrate(address);
+    // A valid hybrid signature by the new key pair, but over the registration hash.
+    IMigratableDispatcher { contract_address: address }
+        .rotate_ecdsa_public_key(WRONG_ECDSA_PK, sig_with(WRONG_ECDSA_R, WRONG_ECDSA_S));
+}
+
+#[test]
+#[should_panic(expected: ('Migratable: invalid key proof', 'ENTRYPOINT_FAILED'))]
+fn rotate_ecdsa_key_nobody_can_sign_for_fails() {
+    let address = deploy_legacy();
+    migrate(address);
+    IMigratableDispatcher { contract_address: address }
+        .rotate_ecdsa_public_key(ECDSA_PK + 1, ecdsa_rotation_proof());
+}
+
+#[test]
+#[should_panic(expected: ('Migratable: only self', 'ENTRYPOINT_FAILED'))]
 fn rotate_ecdsa_key_from_outsider_fails() {
     let address = deploy_legacy();
     migrate(address);
     starknet::testing::set_contract_address(outsider());
-    IMigratableDispatcher { contract_address: address }.rotate_ecdsa_public_key(WRONG_ECDSA_PK);
+    IMigratableDispatcher { contract_address: address }
+        .rotate_ecdsa_public_key(WRONG_ECDSA_PK, ecdsa_rotation_proof());
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected: ('Migratable: no ecdsa key', 'ENTRYPOINT_FAILED'))]
 fn rotate_ecdsa_key_to_zero_fails() {
     let address = deploy_legacy();
     migrate(address);
-    IMigratableDispatcher { contract_address: address }.rotate_ecdsa_public_key(0);
+    IMigratableDispatcher { contract_address: address }.rotate_ecdsa_public_key(0, array![]);
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected: ('Migratable: not registered', 'ENTRYPOINT_FAILED'))]
 fn rotate_ecdsa_key_before_registration_fails() {
     let address = deploy_legacy();
     upgrade_only(address);
-    IMigratableDispatcher { contract_address: address }.rotate_ecdsa_public_key(WRONG_ECDSA_PK);
+    IMigratableDispatcher { contract_address: address }
+        .rotate_ecdsa_public_key(WRONG_ECDSA_PK, ecdsa_rotation_proof());
+}
+
+/// Self-call inside a transaction whose hash is MSG and whose signature is `signature`.
+fn set_verifier_in_tx(address: ContractAddress, signature: Array<felt252>, class_hash: ClassHash) {
+    starknet::testing::set_transaction_hash(MSG);
+    starknet::testing::set_signature(signature.span());
+    IMigratableDispatcher { contract_address: address }.set_verifier_class_hash(class_hash);
+}
+
+#[test]
+fn set_verifier_accepting_the_transaction_signature_succeeds() {
+    let address = deploy_legacy();
+    migrate(address);
+    set_verifier_in_tx(address, hybrid_sig(), verifier());
+    let m = IMigratableDispatcher { contract_address: address };
+    assert_eq!(m.get_verifier_class_hash(), verifier());
+    let account = IHybridAccountDispatcher { contract_address: address };
+    assert_eq!(account.is_valid_signature(MSG, hybrid_sig()), starknet::VALIDATED);
+}
+
+#[test]
+#[should_panic(expected: ('Migratable: verifier rejects', 'ENTRYPOINT_FAILED'))]
+fn set_verifier_of_another_scheme_fails() {
+    let address = deploy_legacy();
+    migrate(address);
+    // The Poseidon verifier reads the same keys but hashes the message differently, so it
+    // rejects this SHAKE-256 signature.
+    set_verifier_in_tx(
+        address, hybrid_sig(), HybridPoseidonAccount::TEST_CLASS_HASH.try_into().unwrap(),
+    );
 }
 
 #[test]
 #[should_panic]
+fn set_verifier_to_a_class_that_is_not_a_verifier_fails() {
+    let address = deploy_legacy();
+    migrate(address);
+    // No is_valid_signature entry point: the library call itself fails.
+    set_verifier_in_tx(
+        address, hybrid_sig(), LegacyOzLikeAccount::TEST_CLASS_HASH.try_into().unwrap(),
+    );
+}
+
+#[test]
+#[should_panic(expected: ('Migratable: verifier rejects', 'ENTRYPOINT_FAILED'))]
+fn set_verifier_without_a_transaction_signature_fails() {
+    let address = deploy_legacy();
+    migrate(address);
+    set_verifier_in_tx(address, array![], verifier());
+}
+
+#[test]
+#[should_panic(expected: ('Migratable: only self', 'ENTRYPOINT_FAILED'))]
 fn set_verifier_from_outsider_fails() {
     let address = deploy_legacy();
     migrate(address);
     starknet::testing::set_contract_address(outsider());
-    IMigratableDispatcher { contract_address: address }.set_verifier_class_hash(verifier());
+    set_verifier_in_tx(address, hybrid_sig(), verifier());
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected: ('Migratable: invalid verifier', 'ENTRYPOINT_FAILED'))]
 fn set_verifier_to_zero_fails() {
     let address = deploy_legacy();
     migrate(address);
-    IMigratableDispatcher { contract_address: address }.set_verifier_class_hash(0.try_into().unwrap());
+    set_verifier_in_tx(address, hybrid_sig(), 0.try_into().unwrap());
 }
 
 #[test]
@@ -279,13 +374,14 @@ fn migrate_with_short_falcon_key_fails() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected: ('Migratable: invalid falcon key', 'ENTRYPOINT_FAILED'))]
 fn rotate_short_falcon_key_fails() {
     let address = deploy_legacy();
     migrate(address);
-    let mut key = falcon_pk();
+    let mut key = falcon_pk_b();
     let _ = key.pop_front();
-    IMigratableDispatcher { contract_address: address }.rotate_falcon_public_key(key);
+    IMigratableDispatcher { contract_address: address }
+        .rotate_falcon_public_key(key, falcon_rotation_proof());
 }
 
 #[test]
@@ -318,14 +414,52 @@ fn truncated_signature_is_rejected() {
 fn falcon_key_rotation_takes_effect() {
     let address = deploy_legacy();
     migrate(address);
-    // Rotate to a different (valid-length) key: the old Falcon signature must stop verifying.
+    IMigratableDispatcher { contract_address: address }
+        .rotate_falcon_public_key(falcon_pk_b(), falcon_rotation_proof());
+    let m = IMigratableDispatcher { contract_address: address };
+    assert_eq!(m.get_falcon_public_key(), falcon_pk_b());
+    assert_eq!(m.get_ecdsa_public_key(), ECDSA_PK);
+    let account = IHybridAccountDispatcher { contract_address: address };
+    // The old Falcon signature stops verifying, one by the new key verifies.
+    assert_eq!(account.is_valid_signature(MSG, hybrid_sig()), 0);
+    assert_eq!(
+        account.is_valid_signature(FALCON_ROTATION_HASH, falcon_rotation_proof()),
+        starknet::VALIDATED,
+    );
+}
+
+#[test]
+#[should_panic(expected: ('Migratable: invalid key proof', 'ENTRYPOINT_FAILED'))]
+fn rotate_falcon_key_without_proof_by_new_key_fails() {
+    let address = deploy_legacy();
+    migrate(address);
+    // Signed by the current Falcon key, not by key B.
+    IMigratableDispatcher { contract_address: address }
+        .rotate_falcon_public_key(falcon_pk_b(), hybrid_sig());
+}
+
+#[test]
+#[should_panic(expected: ('Migratable: invalid key proof', 'ENTRYPOINT_FAILED'))]
+fn rotate_falcon_key_nobody_can_sign_for_fails() {
+    let address = deploy_legacy();
+    migrate(address);
+    // A valid-length key that nobody holds: before the proof check this locked the account.
     let mut other = array![];
     for f in falcon_pk() {
         other.append(f + 1);
     }
-    IMigratableDispatcher { contract_address: address }.rotate_falcon_public_key(other);
-    let account = IHybridAccountDispatcher { contract_address: address };
-    assert_eq!(account.is_valid_signature(MSG, hybrid_sig()), 0);
+    IMigratableDispatcher { contract_address: address }
+        .rotate_falcon_public_key(other, falcon_rotation_proof());
+}
+
+#[test]
+#[should_panic(expected: ('Migratable: only self', 'ENTRYPOINT_FAILED'))]
+fn rotate_falcon_key_from_outsider_fails() {
+    let address = deploy_legacy();
+    migrate(address);
+    starknet::testing::set_contract_address(outsider());
+    IMigratableDispatcher { contract_address: address }
+        .rotate_falcon_public_key(falcon_pk_b(), falcon_rotation_proof());
 }
 
 #[test]

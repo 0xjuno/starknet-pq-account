@@ -31,11 +31,21 @@
 //!   Braavos, OpenZeppelin: multicall [ self.upgrade(this class), self.migrate(...) ]
 //!   Any account with a self-only `upgrade`: the same multicall.
 //!
+//! Key and verifier changes are checked too, so neither can leave the account with keys or a
+//! verifier that no longer accept a signature:
+//!   rotate_falcon_public_key, rotate_ecdsa_public_key: `proof` is a hybrid signature by the
+//!     resulting key pair over `rotation_hash(ecdsa_public_key, falcon_public_key)`.
+//!   set_verifier_class_hash: the transaction's own hash and signature, already accepted by the
+//!     old verifier in `__validate__`, must pass the new one. This only works between verifiers
+//!     of the same signature scheme; anything else needs `upgrade`.
+//! `upgrade` itself is not checked: like any account upgrade, the class it installs is trusted.
+//!
 //! EXPERIMENTAL AND UNAUDITED. Testnet / demo use only.
 
 use starknet::ClassHash;
 
 pub const REGISTER_DOMAIN: felt252 = 'starknet-pq-register-v1';
+pub const ROTATE_DOMAIN: felt252 = 'starknet-pq-rotate-v1';
 
 /// `perform_upgrade` payload for Argent-style upgrades (`upgrade(class_hash, data)`).
 #[derive(Drop, Serde)]
@@ -55,6 +65,15 @@ pub fn registration_hash(ecdsa_public_key: felt252, falcon_public_key: Span<felt
     core::poseidon::poseidon_hash_span(data.span())
 }
 
+/// Message the key rotation proof signs: the key pair the account will hold after the rotation.
+pub fn rotation_hash(ecdsa_public_key: felt252, falcon_public_key: Span<felt252>) -> felt252 {
+    let mut data = array![ROTATE_DOMAIN, ecdsa_public_key];
+    for felt in falcon_public_key {
+        data.append(*felt);
+    }
+    core::poseidon::poseidon_hash_span(data.span())
+}
+
 #[starknet::interface]
 pub trait IMigratable<TState> {
     fn migrate(
@@ -66,8 +85,10 @@ pub trait IMigratable<TState> {
     );
     fn perform_upgrade(ref self: TState, new_implementation: ClassHash, data: Span<felt252>);
     fn execute_after_upgrade(ref self: TState, data: Array<felt252>) -> Array<felt252>;
-    fn rotate_falcon_public_key(ref self: TState, falcon_public_key: Array<felt252>);
-    fn rotate_ecdsa_public_key(ref self: TState, ecdsa_public_key: felt252);
+    fn rotate_falcon_public_key(
+        ref self: TState, falcon_public_key: Array<felt252>, proof: Array<felt252>,
+    );
+    fn rotate_ecdsa_public_key(ref self: TState, ecdsa_public_key: felt252, proof: Array<felt252>);
     fn set_verifier_class_hash(ref self: TState, verifier_class_hash: ClassHash);
     fn upgrade(ref self: TState, new_class_hash: ClassHash);
     fn get_ecdsa_public_key(self: @TState) -> felt252;
@@ -88,7 +109,7 @@ pub mod HybridMigratableAccount {
     use starknet::{ClassHash, SyscallResultTrait, get_caller_address, get_contract_address};
     use crate::utils::execution;
     use crate::utils::interface::IHybridAccount;
-    use super::{MigrationData, registration_hash};
+    use super::{MigrationData, registration_hash, rotation_hash};
 
     pub const ONLY_SELF: felt252 = 'Migratable: only self';
     pub const INVALID_PROOF: felt252 = 'Migratable: invalid key proof';
@@ -97,6 +118,7 @@ pub mod HybridMigratableAccount {
     pub const NOT_REGISTERED: felt252 = 'Migratable: not registered';
     pub const INVALID_FALCON_KEY: felt252 = 'Migratable: invalid falcon key';
     pub const INVALID_VERIFIER: felt252 = 'Migratable: invalid verifier';
+    pub const INCOMPATIBLE_VERIFIER: felt252 = 'Migratable: verifier rejects';
     pub const NO_ECDSA_KEY: felt252 = 'Migratable: no ecdsa key';
 
     #[storage]
@@ -239,37 +261,51 @@ pub mod HybridMigratableAccount {
             array![]
         }
 
-        /// Replaces the Falcon key. Requires a hybrid-signed transaction (self-call).
-        fn rotate_falcon_public_key(ref self: ContractState, falcon_public_key: Array<felt252>) {
+        /// Replaces the Falcon key. Requires a hybrid-signed transaction (self-call) and a
+        /// proof that the owner can sign with the new key, so a wrong key reverts the rotation
+        /// instead of locking the account.
+        fn rotate_falcon_public_key(
+            ref self: ContractState, falcon_public_key: Array<felt252>, proof: Array<felt252>,
+        ) {
             self._assert_only_self();
             assert(self._falcon_registered(), NOT_REGISTERED);
             assert(falcon_public_key.len() == PUBKEY_FELTS, INVALID_FALCON_KEY);
+            let message = rotation_hash(self.Account_public_key.read(), falcon_public_key.span());
             let mut i: u64 = 0;
             for felt in falcon_public_key {
                 self.falcon_public_key.at(i).write(felt);
                 i += 1;
             }
+            assert(self._verify(message, proof.span()), INVALID_PROOF);
             self.emit(FalconKeyRotated {});
         }
 
         /// Replaces the classical STARK-curve key. Requires a hybrid-signed transaction
-        /// (self-call), so a forged ECDSA signature alone cannot rotate it.
-        fn rotate_ecdsa_public_key(ref self: ContractState, ecdsa_public_key: felt252) {
+        /// (self-call), so a forged ECDSA signature alone cannot rotate it, and a proof that the
+        /// owner can sign with the new key.
+        fn rotate_ecdsa_public_key(
+            ref self: ContractState, ecdsa_public_key: felt252, proof: Array<felt252>,
+        ) {
             self._assert_only_self();
             assert(self._falcon_registered(), NOT_REGISTERED);
             assert(ecdsa_public_key != 0, NO_ECDSA_KEY);
             self.Account_public_key.write(ecdsa_public_key);
             self.ecdsa_public_key.write(ecdsa_public_key);
+            let message = rotation_hash(ecdsa_public_key, self._read_falcon_public_key().span());
+            assert(self._verify(message, proof.span()), INVALID_PROOF);
             self.emit(EcdsaKeyRotated { ecdsa_public_key });
         }
 
         /// Points verification at another declared verifier class (e.g. an audited one).
-        /// Requires a hybrid-signed transaction (self-call).
+        /// Requires a hybrid-signed transaction (self-call). The new verifier must accept this
+        /// transaction's own signature, or the switch reverts.
         fn set_verifier_class_hash(ref self: ContractState, verifier_class_hash: ClassHash) {
             self._assert_only_self();
             assert(self._falcon_registered(), NOT_REGISTERED);
             assert(verifier_class_hash.is_non_zero(), INVALID_VERIFIER);
             self.Migratable_verifier_class_hash.write(verifier_class_hash);
+            let tx_info = starknet::get_tx_info().unbox();
+            assert(self._verify(tx_info.transaction_hash, tx_info.signature), INCOMPATIBLE_VERIFIER);
             self.emit(VerifierChanged { verifier_class_hash });
         }
 
@@ -284,14 +320,7 @@ pub mod HybridMigratableAccount {
         }
 
         fn get_falcon_public_key(self: @ContractState) -> Array<felt252> {
-            let mut key = array![];
-            let len = self.falcon_public_key.len();
-            let mut i = 0;
-            while i != len {
-                key.append(self.falcon_public_key.at(i).read());
-                i += 1;
-            }
-            key
+            self._read_falcon_public_key()
         }
 
         fn get_verifier_class_hash(self: @ContractState) -> ClassHash {
@@ -311,6 +340,17 @@ pub mod HybridMigratableAccount {
 
         fn _falcon_registered(self: @ContractState) -> bool {
             self.falcon_public_key.len() == PUBKEY_FELTS.into()
+        }
+
+        fn _read_falcon_public_key(self: @ContractState) -> Array<felt252> {
+            let mut key = array![];
+            let len = self.falcon_public_key.len();
+            let mut i = 0;
+            while i != len {
+                key.append(self.falcon_public_key.at(i).read());
+                i += 1;
+            }
+            key
         }
 
         fn _register(

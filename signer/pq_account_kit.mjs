@@ -12,6 +12,26 @@ import { makeNtt, publicKeyFelts, signatureFelts, signTxHash } from "./falcon_ad
 
 export { deriveAccountKeys };
 export const REGISTER_DOMAIN = "starknet-pq-register-v1";
+export const ROTATE_DOMAIN = "starknet-pq-rotate-v1";
+
+/**
+ * Verifier classes built from this repository (contracts/src/hybrid.cairo) and declared on
+ * Sepolia. The verifier runs in the account's own storage and decides which signatures pass, so
+ * a wallet should only ever install classes it has reviewed. migrationCalls and
+ * verifierSwitchCall refuse anything not in `allowedVerifiers` (this list unless the caller
+ * passes its own).
+ */
+export const KNOWN_VERIFIERS = {
+  "0x2255fc213bf39d1df2129c9e068b363f2b11a27b70b4b2c48df8ea4275f1c92": "HybridShakeAccount (SHAKE-256 hash-to-point)",
+  "0x7f10b6f2f70e72ef87e97844b5f6f13d384c92afcfed2a1233a03524d359d6f": "HybridPoseidonAccount (Poseidon hash-to-point, needs a matching signer)",
+};
+
+function assertAllowedVerifier(verifierClass, allowedVerifiers) {
+  const allowed = Object.keys(allowedVerifiers).map((h) => BigInt(h));
+  if (!allowed.includes(BigInt(verifierClass))) {
+    throw new Error(`verifier class ${num.toHex(verifierClass)} is not in allowedVerifiers`);
+  }
+}
 
 /** Adds the on-chain Falcon public key felts (needs the NTT roots exported from falcon.py). */
 export function prepareKeys(keys, roots) {
@@ -21,6 +41,11 @@ export function prepareKeys(keys, roots) {
 /** Message of the key-possession proof, same as `registration_hash` in migratable.cairo. */
 export function registrationHash(ecdsaPublicKey, falconFelts) {
   return hash.computePoseidonHashOnElements([shortString.encodeShortString(REGISTER_DOMAIN), ecdsaPublicKey, ...falconFelts]);
+}
+
+/** Message of the rotation proof, same as `rotation_hash` in migratable.cairo: the key pair after the rotation. */
+export function rotationHash(ecdsaPublicKey, falconFelts) {
+  return hash.computePoseidonHashOnElements([shortString.encodeShortString(ROTATE_DOMAIN), ecdsaPublicKey, ...falconFelts]);
 }
 
 /** [r, s, falcon x60]: STARK-curve ECDSA and Falcon-512 (SHAKE-256) over the same hash. */
@@ -46,11 +71,13 @@ export function migrationArgs(keys, verifierClass) {
  * migration would remove protections the user set up (info.drops) and the caller has not passed
  * acceptDroppedProtections: true after showing them to the user.
  */
-export function migrationCalls(info, keys, { migratableClass, verifierClass, acceptDroppedProtections = false }) {
+export function migrationCalls(info, keys, { migratableClass, verifierClass, acceptDroppedProtections = false, allowedVerifiers = KNOWN_VERIFIERS }) {
   if (!info.migratable) throw new Error(`not migratable: ${info.reason}`);
   if (info.drops?.length && !acceptDroppedProtections) {
     throw new Error(`migration removes: ${info.drops.join("; ")}. Show this to the user and pass acceptDroppedProtections: true to continue.`);
   }
+  // The key-possession proof is checked by this same class, so it means nothing if the class is not trusted.
+  assertAllowedVerifier(verifierClass, allowedVerifiers);
   const args = migrationArgs(keys, verifierClass);
   if (info.kind === "argent") {
     // Argent's upgrade(class, data) checks SRC6 and library-calls perform_upgrade (0.4+) or,
@@ -61,6 +88,40 @@ export function migrationCalls(info, keys, { migratableClass, verifierClass, acc
     { contractAddress: info.address, entrypoint: "upgrade", calldata: [migratableClass] },
     { contractAddress: info.address, entrypoint: "migrate", calldata: args },
   ];
+}
+
+/**
+ * Calls that move a migrated account from `current` keys to `next` keys (both prepareKeys
+ * output). Sign the transaction with the CURRENT keys (HybridSigner). Each proof is signed by the
+ * key pair the account holds after that call, so keys the user cannot sign with revert the
+ * rotation instead of locking the account.
+ */
+export function rotationCalls(address, current, next) {
+  const calls = [];
+  const sameFalcon = current.falconFelts.length === next.falconFelts.length &&
+    current.falconFelts.every((f, i) => BigInt(f) === BigInt(next.falconFelts[i]));
+  if (!sameFalcon) {
+    const pair = { ecdsaPrivateKey: current.ecdsaPrivateKey, falconSecretKey: next.falconSecretKey, falconPublicKey: next.falconPublicKey };
+    const proof = hybridSignature(rotationHash(current.ecdsaPublicKey, next.falconFelts), pair);
+    calls.push({ contractAddress: address, entrypoint: "rotate_falcon_public_key",
+      calldata: [num.toHex(next.falconFelts.length), ...next.falconFelts, num.toHex(proof.length), ...proof] });
+  }
+  if (BigInt(current.ecdsaPublicKey) !== BigInt(next.ecdsaPublicKey)) {
+    const proof = hybridSignature(rotationHash(next.ecdsaPublicKey, next.falconFelts), next);
+    calls.push({ contractAddress: address, entrypoint: "rotate_ecdsa_public_key",
+      calldata: [next.ecdsaPublicKey, num.toHex(proof.length), ...proof] });
+  }
+  return calls;
+}
+
+/**
+ * The call that points a migrated account at another verifier class. The account checks this
+ * transaction's own signature against the new class and reverts if it fails, so estimate and
+ * simulate with validation on (skipValidate: false): without a signature the call always reverts.
+ */
+export function verifierSwitchCall(address, verifierClass, { allowedVerifiers = KNOWN_VERIFIERS } = {}) {
+  assertAllowedVerifier(verifierClass, allowedVerifiers);
+  return { contractAddress: address, entrypoint: "set_verifier_class_hash", calldata: [num.toHex(verifierClass)] };
 }
 
 // ---------------------------------------------------------------- account inspection

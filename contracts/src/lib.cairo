@@ -14,6 +14,8 @@ mod tests_browser;
 #[cfg(test)]
 mod tests_migration;
 #[cfg(test)]
+mod tests_rotation_fixture;
+#[cfg(test)]
 mod tests_wallets;
 #[cfg(test)]
 mod tests_wallets_fixture;

@@ -41,8 +41,8 @@ in-place upgrade, the hybrid signature check, key backup and recovery, and brows
 
 | Piece | What it does |
 | --- | --- |
-| `HybridMigratableAccount` | Thin account class for in-place migration of an existing account, and library-calls a declared verifier class. Argent accounts migrate in one call through Argent's own `upgrade(class_hash, data)` callbacks (`perform_upgrade` from 0.4, `execute_after_upgrade` in 0.3.x); Braavos and OpenZeppelin accounts use `[upgrade, migrate]` in one transaction. Every path requires a hybrid signature by both new keys, so a wrong key reverts the migration instead of locking the account. The verifier, the Falcon key and the ECDSA key can each be replaced later by a hybrid-signed self-call. |
-| Wallet integration kit | [`signer/pq_account_kit.mjs`](signer/pq_account_kit.mjs): `inspectAccount` tells which wallet an address is and whether it can move today (Argent owners and guardians, Braavos hardware signers and multisig); `migrationCalls` builds the transaction for that wallet; `HybridSigner` signs afterwards with starknet.js. |
+| `HybridMigratableAccount` | Thin account class for in-place migration of an existing account, and library-calls a declared verifier class. Argent accounts migrate in one call through Argent's own `upgrade(class_hash, data)` callbacks (`perform_upgrade` from 0.4, `execute_after_upgrade` in 0.3.x); Braavos and OpenZeppelin accounts use `[upgrade, migrate]` in one transaction. Every path requires a hybrid signature by both new keys, so a wrong key reverts the migration instead of locking the account. The verifier, the Falcon key and the ECDSA key can each be replaced later by a hybrid-signed self-call, with the same kind of check (see Security notes). |
+| Wallet integration kit | [`signer/pq_account_kit.mjs`](signer/pq_account_kit.mjs): `inspectAccount` tells which wallet an address is and whether it can move today (Argent owners and guardians, Braavos hardware signers and multisig); `migrationCalls` builds the transaction for that wallet; `HybridSigner` signs afterwards with starknet.js; `rotationCalls` and `verifierSwitchCall` build later key and verifier changes. Only verifier classes in `KNOWN_VERIFIERS` (or the caller's own `allowedVerifiers`) are accepted. |
 | `HybridPoseidonAccount`, `HybridShakeAccount` | Full hybrid accounts, also used as verifier classes: a transaction passes only if BOTH a STARK-curve ECDSA signature and a Falcon-512 signature verify over the same hash. |
 | Key backup profile | One BIP39 mnemonic restores both keys. For an Argent X / Ready account, the classical key follows Argent's own derivation (checked against argent-x test vectors), so the words the user already has restore the current key and the new Falcon key. See [`contracts/docs/key-backup-v0.md`](contracts/docs/key-backup-v0.md). |
 | Browser signer | Falcon-512 signing in the browser with [@noble/post-quantum](https://github.com/paulmillr/noble-post-quantum) (pure JS), converted by `signer/falcon_adapter.mjs` into the layout of the standard SHAKE-256 on-chain verifier. Demo page: [`docs/index.html`](docs/index.html). |
@@ -89,6 +89,7 @@ reverts and the old account stays as it was.
 | A flaw in the Falcon implementation or in lattice assumptions | Yes | Every transaction also needs the classical ECDSA signature. |
 | Lost device or key files | Yes | One 24-word mnemonic restores both keys. |
 | Someone else swaps the verifier, rotates keys or upgrades the class | Yes | All of these are self-calls that need a hybrid-signed transaction. |
+| The owner rotates to a key they cannot sign with, or to a verifier that cannot read the keys | Yes | The call checks a signature with the result and reverts if it fails. |
 | Bridges (StarkGate, BTC wrappers), Ethereum settlement, data availability | No | Outside the account; see StarkWare's migration register. |
 | Bugs in this code | No | Unaudited. Testnet only. |
 
@@ -115,6 +116,19 @@ Known risks, to be covered by a review before any mainnet use:
   `register_falcon_public_key`, registered a Falcon key without it and was removed on
   2026-10-19; Sepolia accounts migrated before that (including the public demo account) still
   run the older class.
+- Key rotation and verifier changes are checked too (since 2026-11-02, after a
+  [review on the forum](https://community.starknet.io/t/116448/2)). `rotate_falcon_public_key`
+  and `rotate_ecdsa_public_key` take a proof: a hybrid signature by the key pair the account
+  will hold, over `poseidon(["starknet-pq-rotate-v1", ecdsa_key, ...falcon_key])`.
+  `set_verifier_class_hash` checks the transaction's own signature again under the new class.
+  Either way a key the owner cannot sign with, or a verifier that cannot read the keys, reverts
+  the call instead of locking the account. Before this, both went through unchecked; accounts on
+  earlier classes keep that behaviour until they `upgrade`.
+- The verifier class decides which signatures pass, including the migration proof, so a hostile
+  class passed to `migrate` or `set_verifier_class_hash` would accept anything. The contract cannot
+  tell; the kit only accepts pinned class hashes, and wallets should show a verifier change with
+  the same warning as `upgrade`. A verifier change only works between classes of the same
+  signature scheme; a new scheme needs new keys and a class `upgrade`.
 - The storage slots the class writes (`ecdsa_public_key`, `falcon_public_key`,
   `Migratable_verifier_class_hash`) were empty on 48 mainnet accounts across 14 wallet classes
   (`signer/storage_collision_check.mjs`), and `inspectAccount` checks them again before every
@@ -154,6 +168,11 @@ Reproduce with `node signer/mainnet_cost.mjs`.
 | Hybrid-signed transfer from the migrated Argent account | [0x15cae4b1…](https://sepolia.voyager.online/tx/0x15cae4b1c075e0769bb0480f4c8bbe1fc3cd46f459ae304ab80db1cadf57a91) |
 | Braavos account migrated (`[upgrade, migrate]`) | [0x5ad0f10b…](https://sepolia.voyager.online/tx/0x5ad0f10bc956238502f45b420e00b82e87ba0fa58374b0767acfbfd6df3e908) |
 | Hybrid-signed transfer from the migrated Braavos account | [0x1d8a44b1…](https://sepolia.voyager.online/tx/0x1d8a44b12bb51a2b5f74f2af21a1b623ed3c94a9d199a363e7137a2fb234c24) |
+| Both keys rotated with proofs (`rotationCalls`, to index 1 of the same words) | [0x10c20a98…](https://sepolia.voyager.online/tx/0x10c20a9882adc2170b8ffd2df218f2532b9202ff52836e829b002c038de3473) |
+| Transfer signed by the rotated keys | [0x3048adc6…](https://sepolia.voyager.online/tx/0x3048adc624f6d2b50c7b671e3cdd4984c545cc3f8543ad228a53162df1e638e) |
+| Rotation to a Falcon key nobody holds: reverted (`invalid key proof`), keys unchanged | [0x4c3fde4d…](https://sepolia.voyager.online/tx/0x4c3fde4db725aaabd1175ef95b76f90af695db3e7f860e6c3c0ae7205276d5c) |
+| Verifier switch to the Poseidon class (another scheme): reverted (`verifier rejects`) | [0x1c200303…](https://sepolia.voyager.online/tx/0x1c200303a3ad90f592b77771daa0373518e6f4dec3569cd5401a14baadbb072) |
+| Verifier switch to the SHAKE-256 class: accepted | [0x1b6e2afe…](https://sepolia.voyager.online/tx/0x1b6e2afed7d0eeec883079fb16ce51141d4bd8ede9ce5f7dae449cefbda3ad1) |
 
 - Migrated account [`0x54370be5…4c41`](https://sepolia.voyager.online/contract/0x54370be5a940849f13c01f269d95d06c57d15495da594f3e01dfb6eebdb4c41):
   balance before 3.974179 STRK, after 3.750300 STRK; the difference equals the migration fee exactly.
@@ -168,6 +187,11 @@ Reproduce with `node signer/mainnet_cost.mjs`.
   hybrid-signed transfer and rejected an ECDSA-only one. Transactions in
   [`contracts/docs/wallet-coverage.md`](contracts/docs/wallet-coverage.md).
 - ECDSA-only transfers from migrated accounts are rejected in `__validate__`.
+- Rotation and verifier switches ran on a fresh OpenZeppelin account migrated to the current
+  class `0x7efafbfb…f75a`; after the two reverted calls, a final transfer still went through
+  ([0x538b7fa4…](https://sepolia.voyager.online/tx/0x538b7fa4c5997f5cabc58b9a6bb8ac99af4d04d96530ea5fbe18f32b31984be)).
+  Rotating both keys used 166M L2 gas, the verifier switch 97M. Reproduce with
+  `node signer/rotation_sepolia.mjs`.
 - Declaring the thin migratable class costs about 4 STRK on Sepolia, against about 51 STRK for a
   full hybrid class, because verification is shared through a library call.
 - Signatures from `@noble/post-quantum` were cross-checked against an independent Python

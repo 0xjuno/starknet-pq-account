@@ -17,6 +17,11 @@ deploys a real account of that class, and migrates it with
 proof-less `register_falcon_public_key` entry point was removed; the earlier run on class
 `0x143276dc…` is in the git history of this file).
 
+The current class `0x7efafbfbaf02af30bc17d55366392e129fea252d7597650da45a61d0869f75a` (declared
+2026-11-02) adds checks to key rotation and verifier switches and leaves the migration paths as
+they were. So far its migration has been run on Sepolia for the OpenZeppelin `0x05b4b537…` class
+only (`signer/rotation_sepolia.mjs`); the table below is from the previous class.
+
 | Wallet class | Sierra | Migration transaction | L2 gas | Hybrid transfer |
 | --- | --- | --- | --- | --- |
 | Argent 0.3.0 | 1.2.0 | `upgrade` → `execute_after_upgrade` [0x529ebde1…](https://sepolia.voyager.online/tx/0x529ebde10a7bb139b24b879d0ca9fb3c250db88838b4d58348db3dd933244ad) | 153.5M | [0x7fc70e8f…](https://sepolia.voyager.online/tx/0x7fc70e8fdbe1de3246c8b5cb45a5480c5ac59dfdbd4a21291c13930df0fafb2) |
