@@ -51,8 +51,9 @@ const fmt = (wei) => (Number(wei) / 1e18).toFixed(6) + " STRK";
 const provider = new RpcProvider({ nodeUrl: RPC });
 const roots = JSON.parse(readFileSync(ROOTS, "utf8"));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let TIP = 0n; // Sepolia evicts zero-tip transactions; set from recent blocks in main()
 
-async function retry(fn, tries = 6) {
+async function retry(fn, tries = 10) {
   for (let i = 0; ; i++) {
     try { return await fn(); } catch (e) {
       if (i + 1 >= tries || !/cu limit|too fast|429|rate|ECONNRESET|fetch failed/i.test(e?.message || "")) throw e;
@@ -101,7 +102,7 @@ async function bounds(l2Max, l2Mult = [3n, 2n], dataMax = 5000n) {
 const transferCall = (to, amount) => ({ contractAddress: STRK, entrypoint: "transfer", calldata: CallData.compile({ recipient: to, amount: cairo.uint256(amount) }) });
 async function send(acc, calls, l2Max) {
   const nonce = await retry(() => provider.getNonceForAddress(acc.address, "latest"));
-  const t = await retry(async () => acc.execute(calls, { nonce, tip: 0n, resourceBounds: await bounds(l2Max) }));
+  const t = await retry(async () => acc.execute(calls, { nonce, tip: TIP, resourceBounds: await bounds(l2Max) }));
   const rc = await retry(() => provider.waitForTransaction(t.transaction_hash));
   return { tx: t.transaction_hash, fee: rc.actual_fee?.amount, l2Gas: rc.execution_resources?.l2_gas, status: rc.execution_status };
 }
@@ -116,7 +117,7 @@ async function declareMigratable(deployerAcc) {
   const l2Max = BigInt(Math.ceil(4.2e9 * (statSync(sierraPath).size / 2.2e6) * 2.5));
   log(`declaring HybridMigratableAccount ${classHash} (l2 max ${l2Max})...`);
   const nonce = await retry(() => provider.getNonceForAddress(deployerAcc.address, "latest"));
-  const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: 0n, resourceBounds: await bounds(l2Max, [5n, 4n], 200000n) });
+  const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: TIP, resourceBounds: await bounds(l2Max, [5n, 4n], 200000n) });
   if (d.transaction_hash) {
     const rc = await retry(() => provider.waitForTransaction(d.transaction_hash));
     log("declare fee:", rc.actual_fee ? fmt(BigInt(rc.actual_fee.amount)) : "n/a");
@@ -134,7 +135,7 @@ async function deploy(name, w, k, deployerAcc) {
   if ((await strkBalance(address)) < 25n * 10n ** 17n) await send(deployerAcc, transferCall(address, 25n * 10n ** 17n), 3000000n);
   const acc = new Account({ provider, address, signer: braavos ? new BraavosDeploySigner(k.ecdsaPrivateKey, w.impl) : k.ecdsaPrivateKey });
   const r = await retry(async () => acc.deployAccount({ classHash: deployClass, constructorCalldata: ctor, addressSalt: k.ecdsaPublicKey, contractAddress: address },
-    { tip: 0n, resourceBounds: await bounds(30000000n) }));
+    { tip: TIP, resourceBounds: await bounds(30000000n) }));
   const rc = await retry(() => provider.waitForTransaction(r.transaction_hash));
   s.deployTx = r.transaction_hash; s.deployStatus = rc.execution_status; save();
   return s;
@@ -203,7 +204,8 @@ async function main() {
   const deployer = JSON.parse(readFileSync(`${KEYS}/deployer-ecdsa.json`, "utf8"));
   const deployerAddress = readFileSync(`${KEYS}/deployer-address.txt`, "utf8").trim();
   const deployerAcc = new Account({ provider, address: deployerAddress, signer: deployer.privateKey });
-  log("deployer:", deployerAddress, fmt(await strkBalance(deployerAddress)), " verifier (SHAKE):", SHAKE_VERIFIER);
+  TIP = (await retry(() => provider.getEstimateTip("latest", { maxBlocks: 5 }))).recommendedTip;
+  log("deployer:", deployerAddress, fmt(await strkBalance(deployerAddress)), " verifier (SHAKE):", SHAKE_VERIFIER, " tip:", TIP);
   await declareMigratable(deployerAcc);
   log("migratable class:", state.migratableClass);
   const names = process.argv.length > 2 ? process.argv.slice(2) : Object.keys(WALLETS);
