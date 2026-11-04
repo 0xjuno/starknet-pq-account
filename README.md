@@ -192,6 +192,15 @@ Reproduce with `node signer/mainnet_cost.mjs`.
   ([0x538b7fa4…](https://sepolia.voyager.online/tx/0x538b7fa4c5997f5cabc58b9a6bb8ac99af4d04d96530ea5fbe18f32b31984be)).
   Rotating both keys used 166M L2 gas, the verifier switch 97M. Reproduce with
   `node signer/rotation_sepolia.mjs`.
+- A validator migrated while staking: two fresh OpenZeppelin accounts staked 2 STRK, attested
+  with ECDSA, migrated in place (staker and operational, same addresses), attested the next
+  epoch with the hybrid signature
+  ([0x25bd8eb4…](https://sepolia.voyager.online/tx/0x25bd8eb4c80cc907cba701ff89823dad9913e0c102adc3bceaea528f92db72b),
+  61.4M L2 gas against 9.4M for the ECDSA one), then unstaked with the hybrid signature. The
+  staking contract kept the same addresses and stake throughout. On mainnet, 111 of the 135
+  validators staking today have a staker account this kit migrates, but weighted by stake that
+  is 52% of STRK and 2% of delegated BTC: the large validators use multisigs, which this repo
+  does not cover. Details in [`contracts/docs/validators.md`](contracts/docs/validators.md).
 - Declaring the thin migratable class costs about 4 STRK on Sepolia, against about 51 STRK for a
   full hybrid class, because verification is shared through a library call.
 - Signatures from `@noble/post-quantum` were cross-checked against an independent Python
@@ -263,6 +272,8 @@ node wallet_profiles_check.mjs  # offline: Argent X derivation vs argent-x test 
 node wallet_migrate_demo.mjs    # deploy and migrate real accounts of eleven wallet classes
 node mainnet_survey.mjs 400     # read-only: which recent mainnet senders could migrate
 node btc_staking_coverage.mjs   # read-only: how much staked BTC sits in migratable accounts
+node validator_coverage.mjs     # read-only: which validators' staker and operational accounts could migrate
+node validator_sepolia.mjs      # stake, attest, migrate both accounts in place, attest hybrid, unstake
 ```
 
 ## Credits

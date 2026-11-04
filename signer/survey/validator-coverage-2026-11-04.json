@@ -1,0 +1,48 @@
+{
+  "network": "starknet-mainnet",
+  "takenAt": "2026-11-04T02:01:02.415Z",
+  "stakersEver": 275,
+  "stakingNow": 135,
+  "strkStaked": 1755980594,
+  "btcDelegated": 642.5886,
+  "stakerMigratable": {
+    "validators": 111,
+    "share": "82.2%",
+    "strkShare": "52.4%",
+    "btcShare": "2.0%"
+  },
+  "bothMigratable": {
+    "validators": 108,
+    "share": "80.0%",
+    "strkShare": "52.4%"
+  },
+  "stakerNeedsGuardian": 17,
+  "sameStakerAndOperational": 15,
+  "stakerKinds": {
+    "argent 0.4.0": 82,
+    "openzeppelin": 16,
+    "braavos 001.002.000": 14,
+    "argent-other 0.1.1": 13,
+    "braavos 001.001.000": 6,
+    "other": 2,
+    "cairo0": 1,
+    "argent 0.3.1": 1
+  },
+  "operationalKinds": {
+    "argent 0.4.0": 75,
+    "openzeppelin": 29,
+    "braavos 001.002.000": 25,
+    "error": 3,
+    "argent 0.3.1": 2,
+    "braavos 001.001.000": 1
+  },
+  "stakerNotMigratable": {
+    "argent-other account": 13,
+    "Braavos with a hardware or passkey signer (would be dropped)": 3,
+    "Braavos with 4 STARK signers": 2,
+    "other account": 2,
+    "Braavos with 3 STARK signers": 2,
+    "Cairo 0 account: the wallet must upgrade it to Cairo 1 first": 1,
+    "Braavos with 5 STARK signers": 1
+  }
+}
