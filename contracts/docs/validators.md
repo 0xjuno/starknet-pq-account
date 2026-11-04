@@ -44,8 +44,9 @@ Not migratable today, with share of stake:
 So the count looks good (82%) but the stake does not (52% of STRK, 2% of BTC): the largest
 validators keep their staker account in a multisig, and multisig migration is not something this
 repo does. Of the twelve largest stakers by STRK, the largest (320.6M STRK) is an OpenZeppelin
-account and migrates; the next three are an ArgentMultisig, a Braavos account with four STARK
-signers, and another ArgentMultisig.
+account and migrates; the next three are two ArgentMultisig stakers and a Braavos account with
+four STARK signers. Every Argent-class staker and operational account here reports
+`get_name() == 'ArgentAccount'`, so none of them is an Xverse or OKX account.
 
 Operational accounts are almost all single-key: Argent 0.4.0 75, OpenZeppelin 29, Braavos 1.2.0
 25, Argent 0.3.1 2, Braavos 1.1.0 1. Three operational addresses are not deployed yet (only the

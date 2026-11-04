@@ -243,10 +243,13 @@ async function main() {
     const exitWindow = (await view(STAKING, "contract_parameters_v1"))[5];
     log(`  exit window ${exitWindow}s, waiting`);
     await sleep(Number(exitWindow) * 1000 + 60000);
-    const before = (await view(STRK, "balanceOf", [staker]))[0];
     const r = await send(stakerHybrid, [{ contractAddress: STAKING, entrypoint: "unstake_action", calldata: [staker] }], 150000000n);
-    const after = (await view(STRK, "balanceOf", [staker]))[0];
-    return { ...r, strkReturned: (Number(after - before) / 1e18).toFixed(3), stakerRemoved: (await stakerInfo(staker)) === null };
+    // STRK sent by the staking contract to the staker in this transaction: the stake plus any rewards.
+    const rc = await retry(() => provider.getTransactionReceipt(r.tx));
+    const fromStaking = ((rc.value ?? rc).events || []).filter((e) => BigInt(e.from_address) === BigInt(STRK) && e.keys.length >= 3 &&
+      BigInt(e.keys[1]) === BigInt(STAKING) && BigInt(e.keys[2]) === BigInt(staker));
+    const received = fromStaking.reduce((s, e) => s + BigInt(e.data[0]), 0n);
+    return { ...r, strkReceivedFromStaking: (Number(received) / 1e18).toFixed(4), stakerRemoved: (await stakerInfo(staker)) === null };
   });
 
   log("\nVoyager:");
