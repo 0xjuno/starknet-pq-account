@@ -3,6 +3,7 @@
 //! EXPERIMENTAL AND UNAUDITED. Built on OpenZeppelin cairo-pq-verifiers (MIT).
 //! Testnet / demo use only; never hold real funds with these contracts.
 
+pub mod guard;
 pub mod hybrid;
 pub mod migratable;
 pub mod utils;
@@ -11,6 +12,10 @@ pub mod utils;
 mod tests;
 #[cfg(test)]
 mod tests_browser;
+#[cfg(test)]
+mod tests_guard;
+#[cfg(test)]
+mod tests_pf;
 #[cfg(test)]
 mod tests_migration;
 #[cfg(test)]

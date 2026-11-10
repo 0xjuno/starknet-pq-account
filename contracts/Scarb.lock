@@ -13,6 +13,9 @@ version = "0.1.0"
 dependencies = [
  "pqbench_ecdsa_stark",
  "pqbench_falcon_512",
+ "pqbench_falcon_512_pf_compact",
+ "pqbench_falcon_512_pf_record",
+ "pqbench_falcon_512_pf_small",
  "pqbench_interface",
 ]
 
@@ -33,11 +36,59 @@ dependencies = [
 ]
 
 [[package]]
+name = "pqbench_falcon_512_pf_compact"
+version = "0.1.0"
+dependencies = [
+ "corelib_imports",
+ "pqbench_interface",
+ "pqbench_ntt_pf_compact",
+]
+
+[[package]]
+name = "pqbench_falcon_512_pf_record"
+version = "0.1.0"
+dependencies = [
+ "corelib_imports",
+ "pqbench_interface",
+ "pqbench_ntt_pf_record",
+]
+
+[[package]]
+name = "pqbench_falcon_512_pf_small"
+version = "0.1.0"
+dependencies = [
+ "corelib_imports",
+ "pqbench_interface",
+ "pqbench_ntt_pf_small",
+]
+
+[[package]]
 name = "pqbench_interface"
 version = "0.1.0"
 
 [[package]]
 name = "pqbench_ntt"
+version = "0.1.0"
+dependencies = [
+ "corelib_imports",
+]
+
+[[package]]
+name = "pqbench_ntt_pf_compact"
+version = "0.1.0"
+dependencies = [
+ "corelib_imports",
+]
+
+[[package]]
+name = "pqbench_ntt_pf_record"
+version = "0.1.0"
+dependencies = [
+ "corelib_imports",
+]
+
+[[package]]
+name = "pqbench_ntt_pf_small"
 version = "0.1.0"
 dependencies = [
  "corelib_imports",

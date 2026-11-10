@@ -1,0 +1,91 @@
+{
+  "description": "PF-07 Sepolia evidence for testnet-v1; see release/README.md",
+  "generated_utc": "2026-10-27T21:59:16.832Z",
+  "release": "testnet-v1",
+  "publicDemo": {
+    "account": "0x343e3df576edca452f2cc6ac5247fc38a3641912f545e25468e3b7e7de1c0db",
+    "guard": "0x5093253fe6ee74bce57ae826a72bc94ddf02b6fbe20db5512e744a9a304945e",
+    "topups": [],
+    "switchToSmall": {
+      "tx": "0xd651842233b8f5448e0453674bef2bd95afa6c2b2cc64850be84b7e7b40547",
+      "status": "SUCCEEDED",
+      "block": 17250073,
+      "timestamp": 1793138160,
+      "l2_gas": 86832416,
+      "l1_data_gas": 192,
+      "l1_gas": 0,
+      "fee_fri": "1640404903929249088",
+      "l2_gas_price_fri": "18791616136",
+      "verifierAfter": "0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1",
+      "keysUnchanged": true
+    },
+    "browser": {
+      "note": "signer/passkey_e2e.mjs, headless Chromium: public demo words -> passkey lock -> reload -> unlock -> transfer",
+      "oldPageBeforeSwitch": {
+        "tx": "0x1b91c2a024c764ddefbfdd0a9d3cb59c2edbab814b379672039707ec50c7362",
+        "status": "SUCCEEDED",
+        "block": 17250058,
+        "timestamp": 1793138134,
+        "l2_gas": 53944073,
+        "l1_data_gas": 192,
+        "l1_gas": 0,
+        "fee_fri": "1019090943922173064",
+        "l2_gas_price_fri": "18791616136"
+      },
+      "oldPageAfterSwitch": {
+        "tx": "0x2854921d79ec2759beb7056fbb2780ede391b4ca3f84b2b56da2de629ca3706",
+        "status": "SUCCEEDED",
+        "block": 17250089,
+        "timestamp": 1793138188,
+        "l2_gas": 29546703,
+        "l1_data_gas": 192,
+        "l1_gas": 0,
+        "fee_fri": "558185210194539384",
+        "l2_gas_price_fri": "18791616136"
+      },
+      "newPage": {
+        "tx": "0x2f21884a1ba148cda0b314262958cd28f1e9dd58c191a2fd4a7e4c344b675b2",
+        "status": "SUCCEEDED",
+        "block": 17250103,
+        "timestamp": 1793138211,
+        "l2_gas": 28011927,
+        "l1_data_gas": 192,
+        "l1_gas": 0,
+        "fee_fri": "529190818402654200",
+        "l2_gas_price_fri": "18791616136"
+      }
+    }
+  },
+  "cleanCheckout": {
+    "note": "fresh git clone, empty keys directory except the deployer key, no PQ_VERIFIER set: wallet_migrate_demo.mjs braavos-1.2.0",
+    "wallet": "braavos-1.2.0",
+    "address": "0x2e9a805c5bd92f155bf246ab6c099fdca513f4ac3b49364a770f8588e2fb605",
+    "verifierClass": "0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1",
+    "verifierId": "shake-pf-small-v1",
+    "migration": {
+      "tx": "0x25ca0a053a4ffd8dc240845876fd42ca491f24c8753c9404cc8bdec55662118",
+      "status": "SUCCEEDED",
+      "block": 17250170,
+      "timestamp": 1793138326,
+      "l2_gas": 48530488,
+      "l1_data_gas": 3328,
+      "l1_gas": 0,
+      "fee_fri": "916824154977239488",
+      "l2_gas_price_fri": "18791616136"
+    },
+    "hybridTransfer": {
+      "tx": "0x40886ebfb586d12822a3bf47916c29f0c3296839d7209c1d9b6935bc2984ab0",
+      "status": "SUCCEEDED",
+      "block": 17250175,
+      "timestamp": 1793138335,
+      "l2_gas": 29573956,
+      "l1_data_gas": 192,
+      "l1_gas": 0,
+      "fee_fri": "558700104593932448",
+      "l2_gas_price_fri": "18791616136"
+    },
+    "keysPreserved": true,
+    "balanceDropEqualsFee": true,
+    "ecdsaOnlyTransfer": "rejected in __validate__"
+  }
+}

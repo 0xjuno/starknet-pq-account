@@ -1,0 +1,142 @@
+{
+  "description": "ECDSA halves of the PF-04 hybrid signatures over bench/pf01/corpus.json messages",
+  "ecdsa_private_key_PUBLIC_TEST_ONLY": "0x1234567890abcdef",
+  "ecdsa_public_key": "0x2abbefdcbf731195ee2acd186441eb536e86f888327b3655cffbd07b57dbf26",
+  "vectors": [
+    {
+      "id": 0,
+      "ecdsa_r": "0x7592745fdb359fefc8e614967df358fbab9fc931541e47af7ce3284d39ea93b",
+      "ecdsa_s": "0x4da27a640c1d3a85daccfa5c291a5d8017e54dd1316e4e24306d1ae63867c73"
+    },
+    {
+      "id": 1,
+      "ecdsa_r": "0x1581d8572f363ea2bdb45b80d3c015fade75f51691aec6322f373af8909fc1c",
+      "ecdsa_s": "0x2628c91ce4afe79538d43be9ab29f498e5951700ac6c69c4af252c4f14a76bf"
+    },
+    {
+      "id": 2,
+      "ecdsa_r": "0x299c9309fc05a342734726abf149c030077b96eb2e7a2a098d19f6df1d74e01",
+      "ecdsa_s": "0x31d3730e92657c490f89498883bc7f16dff564f32a08cc0bc5b210645c0d89c"
+    },
+    {
+      "id": 3,
+      "ecdsa_r": "0x2c73bfdc9756b58acfe4007d2c8aa66ab353404e233637a1a5b2e747fd17b0b",
+      "ecdsa_s": "0x59b618e063cb91faacea5c559c9aa8d10fd1e1c2599ceeb1c1bceda5aedd1e2"
+    },
+    {
+      "id": 4,
+      "ecdsa_r": "0x43ded8154f4653639d4bc86f9eec161f13078903ed6d44d2516b5dcb5701446",
+      "ecdsa_s": "0x625021dacd4a50771a4e5fcee1a8f51a990c0b267ce143f79247c4d53f0cd47"
+    },
+    {
+      "id": 5,
+      "ecdsa_r": "0x2a6fa673218f8920a0e16754f3e0e52e80ed74f4b0b6ed84d218fcd18b54986",
+      "ecdsa_s": "0x616632f6f70d714110f2b7f2c072ac7b2d83b166465c8b838efd9312fb24ba5"
+    },
+    {
+      "id": 6,
+      "ecdsa_r": "0x1b15cfa15b1406de9f7a11395c3979eb511cffbe6475ff35200a802c41c6b91",
+      "ecdsa_s": "0x767d763d35c4ad3ca003996b8e5d1aea196c1bacd2b79a9fba21ac42418788f"
+    },
+    {
+      "id": 7,
+      "ecdsa_r": "0x14a468e31f16ed274e2d9296916562ec739b846c2a1c4e8026d130565e7b875",
+      "ecdsa_s": "0x59c02f357af4ee35a39ddb3c9d9ff4544b3b5e208bdab382a5e4af25c28d496"
+    },
+    {
+      "id": 8,
+      "ecdsa_r": "0x7b7430ee0fe4685eb18e8340a9d2a1491dbd29c764fb846fec100644843d139",
+      "ecdsa_s": "0x6724805138c06cafbc6885f30d00de57b8fa62e4aef29a3b862356279c68052"
+    },
+    {
+      "id": 9,
+      "ecdsa_r": "0x2dd7ea52338090fcdd2da0a596c070dace3ed7ad61b15ccdaccf2211b4c74d4",
+      "ecdsa_s": "0x5bf0e23800937430bbf55dd60739052467c0737016e01b880fbd566bf832960"
+    },
+    {
+      "id": 10,
+      "ecdsa_r": "0x1e39e7e5b871759e9e711ed52f2d2e56451273db03758a03ef106fc400bc7c1",
+      "ecdsa_s": "0x2b36e9129168a0ac5c1f9c5450f8b3018ce865c1e518d0a612059df6633c13"
+    },
+    {
+      "id": 11,
+      "ecdsa_r": "0x75730a9b77f7dbf820482871e809d4c7f27327c78a6ec822b7d27e0fa991b68",
+      "ecdsa_s": "0x3f3773c3795c6b8d0973cb049f3d94d282651b13ab0a964c55fd4bb4b83da86"
+    },
+    {
+      "id": 12,
+      "ecdsa_r": "0x411713818b832bd5e192d124f42eaeabfaa4e7565054c124973d8819a52b67a",
+      "ecdsa_s": "0x55d213c2ef5351acc12aeca729902484aed1e68e8d254d1ebc54fec3b0ee06"
+    },
+    {
+      "id": 13,
+      "ecdsa_r": "0xe3c6f3c7b8c4e71a452f7a27d612bc5458a2b23ad08bfa5ec273972787b8b0",
+      "ecdsa_s": "0x57f7e6a4de7d776b24b9871947a91e47cb8234796bfe138587ca904a2225a04"
+    },
+    {
+      "id": 14,
+      "ecdsa_r": "0x3152cfe4e45f596c5c278f35462458b32573d3f5ae488c785fd7d868e13738a",
+      "ecdsa_s": "0x7d8f73fd53a932c707efdc5d7f26ec72ecfaed215fc6083e5e2d44ba0540f9d"
+    },
+    {
+      "id": 15,
+      "ecdsa_r": "0x3b851d502779230182841d209cfab0f3c96a3a0590145bf5cc5bf2bf4c0d35a",
+      "ecdsa_s": "0x4c20b91f1c3db765920cca35e01139907ac954db7a665a41ee88edc1ddb535a"
+    },
+    {
+      "id": 16,
+      "ecdsa_r": "0x4953bdc2fea92966851a4648a02c004335a05e9dcf6461e757391459d36b46f",
+      "ecdsa_s": "0x3274b249859ab42263b69007bdcb64afa20378ee6239b33547f0582e66eb5fd"
+    },
+    {
+      "id": 17,
+      "ecdsa_r": "0x123dc825a4d53c8d413e09b5b78d6bdbdba0a00ff6ac0730bd8963cb7f53cc7",
+      "ecdsa_s": "0x157e9e9a4b837f82cca21ff59d6dbe8950375263c6fea8e5aa259728d8255a9"
+    },
+    {
+      "id": 18,
+      "ecdsa_r": "0x7e3d11115be1107d14b09f6d5ed798bf5b8625e2672f57b6abd0d25b03c73e6",
+      "ecdsa_s": "0x2dc11ce56783a66d38fbc2d0757a0bb0baf631ed4366456f8eeacc7f2f26493"
+    },
+    {
+      "id": 19,
+      "ecdsa_r": "0x74cd4b084636888b220ebc1346c2a95c6ae02bf02b42362fc6819cb4f0326ff",
+      "ecdsa_s": "0x7a91b859a031c006f2643615d6179e6b97e98c9a8d79e2420fda08a69fc15d6"
+    },
+    {
+      "id": 20,
+      "ecdsa_r": "0x68a6c14817fc81d7c236647c1c9659986c1439f172cb5419ba3f397361f55f6",
+      "ecdsa_s": "0x251e0068558bcc6f4170848175e51a472fedbbcd5f6084dce442606f4fad164"
+    },
+    {
+      "id": 21,
+      "ecdsa_r": "0x27d6e5fe653a60bcb801956cb88d117f1dadf97436ee10bde2dc789b37a950d",
+      "ecdsa_s": "0x7f88b05d3298da0807bfc08872273f76fe361a20a60174b2cd9edb5d821364"
+    },
+    {
+      "id": 22,
+      "ecdsa_r": "0x4cefd9ce790d75530686b7bfaccd5f70071be52cf196d57180172c454241a3a",
+      "ecdsa_s": "0x42f5d83040f2d2d6aa44122000418022bc96dfd8b67d3f0dd7b06dd7917d7b4"
+    },
+    {
+      "id": 23,
+      "ecdsa_r": "0x27672752c34d11cc8f8a663dc1d400c737b41d07f30d3a4c91f8e43ad92fc7c",
+      "ecdsa_s": "0x7dda1545cfd75dfd3d8b5d84d3d1548f00ff137df8020c37925d0a2f4f03392"
+    },
+    {
+      "id": 24,
+      "ecdsa_r": "0x5b6b7bd817919400ab100f1e8a3c67f5b7f5e31df6b7b5ceb356a16b1fda122",
+      "ecdsa_s": "0x2a0206ead50f357b80b3bc5229c31109fd792c61f5aa75295d9ded01508fa9c"
+    },
+    {
+      "id": 25,
+      "ecdsa_r": "0x31f93ae6484964cbd30cc489e245bb7195342cfb692c86ce93c5204ceb2ed3",
+      "ecdsa_s": "0x710a96ae35ab7a339bfe6e68cc4dd675dd35d789bdddc0b2b96ced62868b0cc"
+    },
+    {
+      "id": 26,
+      "ecdsa_r": "0x3d67fac50cbbae41a98fbf3d33aea722b211f8144acc9a64b4df41dc71e8b4f",
+      "ecdsa_s": "0x56d6b6fb338fbd3d219735d1e713338009e0f41b414df2e865b25738b6d72ae"
+    }
+  ]
+}

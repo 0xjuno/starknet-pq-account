@@ -30,6 +30,8 @@ const save = () => writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 const log = (...a) => console.log(...a);
 const fmt = (wei) => (Number(wei) / 1e18).toFixed(6) + " STRK";
 const provider = new RpcProvider({ nodeUrl: RPC });
+// Sepolia evicts zero-tip transactions from the mempool; set in main() from recent blocks.
+let TIP = 0n;
 
 function falcon(action, hashHex) {
   const req = { action, scheme: SCHEME };
@@ -82,6 +84,7 @@ async function main() {
   const deployer = JSON.parse(readFileSync(`${KEYS}/deployer-ecdsa.json`, "utf8"));
   const deployerAddress = readFileSync(`${KEYS}/deployer-address.txt`, "utf8").trim();
   const deployerAcc = new Account({ provider, address: deployerAddress, signer: deployer.privateKey });
+  TIP = (await provider.getEstimateTip("latest", { maxBlocks: 5 })).recommendedTip;
   log("deployer:", deployerAddress, fmt(await strkBalance(deployerAddress)));
   log("verifier class (library-called):", VERIFIER_CLASS);
 
@@ -107,7 +110,7 @@ async function main() {
     if ((await strkBalance(userAddress)) < 5n * 10n ** 18n) {
       log("funding user with 6 STRK...");
       const nonce = await provider.getNonceForAddress(deployerAddress, "latest");
-      const t = await deployerAcc.execute(transferCall(userAddress, 6n * 10n ** 18n), { nonce, tip: 0n });
+      const t = await deployerAcc.execute(transferCall(userAddress, 6n * 10n ** 18n), { nonce, tip: TIP });
       await provider.waitForTransaction(t.transaction_hash);
       state.fundTx = t.transaction_hash; save();
     }
@@ -116,7 +119,7 @@ async function main() {
     const r = await userAcc.deployAccount({
       classHash: OZ_ACCOUNT_CLASS, constructorCalldata: [user.publicKey],
       addressSalt: user.publicKey, contractAddress: userAddress,
-    }, { tip: 0n });
+    }, { tip: TIP });
     await provider.waitForTransaction(r.transaction_hash);
     state.userDeployTx = r.transaction_hash; save();
     log("OZ account deployed:", `${VOYAGER}/tx/${r.transaction_hash}`);
@@ -133,7 +136,7 @@ async function main() {
     const l2Max = BigInt(Math.ceil(4.2e9 * ratio * 2));
     log(`declaring HybridMigratableAccount (size ratio ${ratio.toFixed(3)}, l2 max ${l2Max})...`);
     const nonce = await provider.getNonceForAddress(deployerAddress, "latest");
-    const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: 0n, resourceBounds: await bounds(l2Max, [5n, 4n], 200000n) });
+    const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: TIP, resourceBounds: await bounds(l2Max, [5n, 4n], 200000n) });
     if (d.transaction_hash) {
       const rc = await provider.waitForTransaction(d.transaction_hash);
       log("declare fee:", rc.actual_fee ? fmt(BigInt(rc.actual_fee.amount)) : "n/a");
@@ -157,7 +160,7 @@ async function main() {
     ];
     log("migrating in place: [upgrade, migrate(keys, proof)] signed by the ECDSA key...");
     const nonce = await provider.getNonceForAddress(userAddress, "latest");
-    const m = await userAcc.execute(calls, { nonce, tip: 0n, resourceBounds: await bounds(150000000n) });
+    const m = await userAcc.execute(calls, { nonce, tip: TIP, resourceBounds: await bounds(150000000n) });
     const rc = await provider.waitForTransaction(m.transaction_hash);
     state.migrationTx = m.transaction_hash;
     state.migrationFee = rc.actual_fee ? rc.actual_fee.amount : null; save();
@@ -182,7 +185,7 @@ async function main() {
     const hybridAcc = new Account({ provider, address: userAddress, signer: new HybridSigner(user.privateKey) });
     log("hybrid-signed transfer (ECDSA + Falcon) of 0.1 STRK...");
     const nonce = await provider.getNonceForAddress(userAddress, "latest");
-    const x = await hybridAcc.execute(transferCall(deployerAddress, 10n ** 17n), { nonce, tip: 0n, resourceBounds: await bounds(60000000n) });
+    const x = await hybridAcc.execute(transferCall(deployerAddress, 10n ** 17n), { nonce, tip: TIP, resourceBounds: await bounds(60000000n) });
     const rc = await provider.waitForTransaction(x.transaction_hash);
     state.hybridTransferTx = x.transaction_hash;
     state.hybridTransferFee = rc.actual_fee ? rc.actual_fee.amount : null;
@@ -196,7 +199,7 @@ async function main() {
     const attacker = new Account({ provider, address: userAddress, signer: new EcdsaOnlySigner(user.privateKey) });
     try {
       const nonce = await provider.getNonceForAddress(userAddress, "latest");
-      const r = await attacker.execute(transferCall(deployerAddress, 1n), { nonce, tip: 0n, resourceBounds: await bounds(60000000n, [2n, 1n]) });
+      const r = await attacker.execute(transferCall(deployerAddress, 1n), { nonce, tip: TIP, resourceBounds: await bounds(60000000n, [2n, 1n]) });
       state.negativeResult = "UNEXPECTED: accepted " + r.transaction_hash;
     } catch (e) {
       const msg = e?.message || String(e);

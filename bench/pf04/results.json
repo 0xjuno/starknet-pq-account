@@ -1,0 +1,523 @@
+{
+  "description": "PF-04 account-level measurements; see bench/pf04/README.md",
+  "env": {
+    "date_utc": "2026-10-29T11:40:51Z",
+    "uname": "Darwin 25.6.0 arm64",
+    "scarb": "scarb 2.18.0 (e6144df0f 2026-04-21) cairo: 2.18.0 (https://crates.io/crates/cairo-lang-compiler/2.18.0) sierra: 1.8.0 arch: aarch64-apple-darwin ",
+    "snforge": "snforge 0.59.0",
+    "usc": "universal-sierra-compiler 2.10.3"
+  },
+  "method": "snforge L2 gas (Sierra-gas mode): measured test minus its setup_ twin",
+  "network_limits": {
+    "validate_max_sierra_gas": 100000000,
+    "validate_max_n_steps": 1000000,
+    "max_casm_bytecode_felts": 81920,
+    "max_sierra_program_felts": 81920,
+    "max_contract_class_object_bytes": 4089446,
+    "max_compiled_class_object_bytes": 4089446,
+    "max_signature_length": 4000,
+    "max_receipt_l2_gas_in_block": 5800000000
+  },
+  "validate": {
+    "baseline": {
+      "mean": 50396185,
+      "worst": 52177683,
+      "best": 47807131,
+      "mean_by_blocks": {
+        "8": 47820808,
+        "9": 52166757
+      },
+      "per_vector": {
+        "0": 47823191,
+        "1": 47823131,
+        "2": 47825681,
+        "3": 47824461,
+        "4": 52167493,
+        "5": 52164043,
+        "6": 52160363,
+        "7": 52162803,
+        "8": 52156263,
+        "9": 47818361,
+        "10": 47807131,
+        "11": 47827211,
+        "12": 47816881,
+        "13": 52159393,
+        "14": 52168433,
+        "15": 52163783,
+        "16": 52169993,
+        "17": 52161463,
+        "18": 47823671,
+        "19": 47814801,
+        "20": 47824371,
+        "21": 52167113,
+        "22": 52168443,
+        "23": 52171743,
+        "24": 52173473,
+        "25": 52175623,
+        "26": 52177683
+      }
+    },
+    "compact": {
+      "mean": 26431759,
+      "worst": 27915024,
+      "best": 25445185,
+      "mean_by_blocks": {
+        "8": 25451749,
+        "9": 27105517
+      },
+      "per_vector": {
+        "0": 25453215,
+        "1": 25454125,
+        "2": 25453345,
+        "3": 25452115,
+        "4": 27041931,
+        "5": 27046321,
+        "6": 27041681,
+        "7": 27047051,
+        "8": 27039151,
+        "9": 25450845,
+        "10": 25453825,
+        "11": 25445185,
+        "12": 25451685,
+        "13": 27041911,
+        "14": 27078654,
+        "15": 27040041,
+        "16": 27066534,
+        "17": 27050121,
+        "18": 25448835,
+        "19": 25449495,
+        "20": 25456565,
+        "21": 27065604,
+        "22": 27047131,
+        "23": 27049341,
+        "24": 27050171,
+        "25": 27067604,
+        "26": 27915024
+      }
+    },
+    "record": {
+      "mean": 26130688,
+      "worst": 27614917,
+      "best": 25143078,
+      "mean_by_blocks": {
+        "8": 25150129,
+        "9": 26804823
+      },
+      "per_vector": {
+        "0": 25151108,
+        "1": 25153358,
+        "2": 25151908,
+        "3": 25151348,
+        "4": 26738184,
+        "5": 26745744,
+        "6": 26740264,
+        "7": 26745044,
+        "8": 26738754,
+        "9": 25148738,
+        "10": 25151718,
+        "11": 25143078,
+        "12": 25149578,
+        "13": 26743084,
+        "14": 26779747,
+        "15": 26738304,
+        "16": 26766237,
+        "17": 26751374,
+        "18": 25147398,
+        "19": 25146718,
+        "20": 25156468,
+        "21": 26764727,
+        "22": 26745884,
+        "23": 26748004,
+        "24": 26749504,
+        "25": 26767397,
+        "26": 27614917
+      }
+    },
+    "small": {
+      "mean": 27215883,
+      "worst": 28722966,
+      "best": 26223037,
+      "mean_by_blocks": {
+        "8": 26231313,
+        "9": 27892774
+      },
+      "per_vector": {
+        "0": 26233177,
+        "1": 26234577,
+        "2": 26232477,
+        "3": 26232037,
+        "4": 27826023,
+        "5": 27834323,
+        "6": 27826843,
+        "7": 27833683,
+        "8": 27827393,
+        "9": 26232137,
+        "10": 26235147,
+        "11": 26223037,
+        "12": 26231337,
+        "13": 27830993,
+        "14": 27862516,
+        "15": 27828563,
+        "16": 27850386,
+        "17": 27836393,
+        "18": 26227977,
+        "19": 26227007,
+        "20": 26235537,
+        "21": 27850366,
+        "22": 27834093,
+        "23": 27836843,
+        "24": 27835473,
+        "25": 27847526,
+        "26": 28722966
+      }
+    },
+    "smallkr": {
+      "mean": 26549273,
+      "worst": 28056356,
+      "best": 25556427,
+      "mean_by_blocks": {
+        "8": 25564703,
+        "9": 27226164
+      },
+      "per_vector": {
+        "0": 25566567,
+        "1": 25567967,
+        "2": 25565867,
+        "3": 25565427,
+        "4": 27159413,
+        "5": 27167713,
+        "6": 27160233,
+        "7": 27167073,
+        "8": 27160783,
+        "9": 25565527,
+        "10": 25568537,
+        "11": 25556427,
+        "12": 25564727,
+        "13": 27164383,
+        "14": 27195906,
+        "15": 27161953,
+        "16": 27183776,
+        "17": 27169783,
+        "18": 25561367,
+        "19": 25560397,
+        "20": 25568927,
+        "21": 27183756,
+        "22": 27167483,
+        "23": 27170233,
+        "24": 27168863,
+        "25": 27180916,
+        "26": 28056356
+      }
+    },
+    "direct": {
+      "mean": 50045745,
+      "worst": 51827243,
+      "best": 47456691,
+      "mean_by_blocks": {
+        "8": 47470368,
+        "9": 51816317
+      },
+      "per_vector": {
+        "0": 47472751,
+        "1": 47472691,
+        "2": 47475241,
+        "3": 47474021,
+        "4": 51817053,
+        "5": 51813603,
+        "6": 51809923,
+        "7": 51812363,
+        "8": 51805823,
+        "9": 47467921,
+        "10": 47456691,
+        "11": 47476771,
+        "12": 47466441,
+        "13": 51808953,
+        "14": 51817993,
+        "15": 51813343,
+        "16": 51819553,
+        "17": 51811023,
+        "18": 47473231,
+        "19": 47464361,
+        "20": 47473931,
+        "21": 51816673,
+        "22": 51818003,
+        "23": 51821303,
+        "24": 51823033,
+        "25": 51825183,
+        "26": 51827243
+      }
+    }
+  },
+  "selected_vectors": [
+    0,
+    26
+  ],
+  "declare": {
+    "baseline": {
+      "0": 47817791,
+      "26": 52172283
+    },
+    "compact": {
+      "0": 25447815,
+      "26": 27909624
+    },
+    "record": {
+      "0": 25145708,
+      "26": 27609517
+    },
+    "small": {
+      "0": 26227777,
+      "26": 28717566
+    },
+    "smallkr": {
+      "0": 25561167,
+      "26": 28050956
+    }
+  },
+  "is_valid": {
+    "baseline": {
+      "0": 48014871,
+      "26": 52369363
+    },
+    "compact": {
+      "0": 25644895,
+      "26": 28106704
+    },
+    "record": {
+      "0": 25342788,
+      "26": 27806597
+    },
+    "small": {
+      "0": 26424857,
+      "26": 28914646
+    },
+    "smallkr": {
+      "0": 25758247,
+      "26": 28248036
+    }
+  },
+  "reject": {
+    "baseline": {
+      "0": 52411463,
+      "26": 48067631
+    },
+    "compact": {
+      "0": 27231021,
+      "26": 25644455
+    },
+    "record": {
+      "0": 26915914,
+      "26": 25324868
+    },
+    "small": {
+      "0": 27116653,
+      "26": 25519647
+    },
+    "smallkr": {
+      "0": 26450043,
+      "26": 24853037
+    }
+  },
+  "migrate": {
+    "baseline": 69386419,
+    "compact": 44272637,
+    "record": 43971120,
+    "small": 45057399,
+    "smallkr": 44390789
+  },
+  "entrypoint_cross_check": {
+    "baseline": {
+      "entrypoint_mean": 50300095,
+      "entrypoint_worst": 52081593,
+      "paired_minus_entrypoint": {
+        "min": 96090,
+        "max": 96090
+      }
+    },
+    "compact": {
+      "entrypoint_mean": 26335669,
+      "entrypoint_worst": 27818934,
+      "paired_minus_entrypoint": {
+        "min": 96090,
+        "max": 96090
+      }
+    },
+    "record": {
+      "entrypoint_mean": 26034598,
+      "entrypoint_worst": 27518827,
+      "paired_minus_entrypoint": {
+        "min": 96090,
+        "max": 96090
+      }
+    },
+    "small": {
+      "entrypoint_mean": 27119793,
+      "entrypoint_worst": 28626876,
+      "paired_minus_entrypoint": {
+        "min": 96090,
+        "max": 96090
+      }
+    },
+    "smallkr": {
+      "entrypoint_mean": 26453183,
+      "entrypoint_worst": 27960266,
+      "paired_minus_entrypoint": {
+        "min": 96090,
+        "max": 96090
+      }
+    },
+    "direct": {
+      "entrypoint_mean": 49949655,
+      "entrypoint_worst": 51731153,
+      "paired_minus_entrypoint": {
+        "min": 96090,
+        "max": 96090
+      }
+    }
+  },
+  "validate_steps_worst_vector": {
+    "baseline": 331338,
+    "compact": 182602,
+    "record": 179553,
+    "small": 189908,
+    "smallkr": 183384
+  },
+  "class_sizes": {
+    "HybridShakeAccount": {
+      "casm_bytecode_felts": 53237,
+      "sierra_program_felts": 53532,
+      "declare_code_l2_gas": 4377213440,
+      "contract_class_object_bytes": 2038866,
+      "compiled_class_object_bytes": 1439349
+    },
+    "HybridShakeVerifierPfCompact": {
+      "casm_bytecode_felts": 71580,
+      "sierra_program_felts": 71809,
+      "declare_code_l2_gas": 5874137600,
+      "contract_class_object_bytes": 3149439,
+      "compiled_class_object_bytes": 2141080
+    },
+    "HybridShakeVerifierPfRecord": {
+      "casm_bytecode_felts": 77902,
+      "sierra_program_felts": 76146,
+      "declare_code_l2_gas": 6310728960,
+      "contract_class_object_bytes": 3422453,
+      "compiled_class_object_bytes": 2329159
+    },
+    "HybridShakeVerifierPfSmall": {
+      "casm_bytecode_felts": 64163,
+      "sierra_program_felts": 68569,
+      "declare_code_l2_gas": 5437624320,
+      "contract_class_object_bytes": 3350894,
+      "compiled_class_object_bytes": 1741663
+    },
+    "HybridShakeVerifierPfSmallKeyRead": {
+      "casm_bytecode_felts": 63912,
+      "sierra_program_felts": 68420,
+      "declare_code_l2_gas": 5421249280,
+      "contract_class_object_bytes": 3341785,
+      "compiled_class_object_bytes": 1735081
+    },
+    "HybridMigratableAccount": {
+      "casm_bytecode_felts": 7719,
+      "sierra_program_felts": 3546,
+      "declare_code_l2_gas": 468300800,
+      "contract_class_object_bytes": 181970,
+      "compiled_class_object_bytes": 177227
+    },
+    "HybridPoseidonAccount": {
+      "casm_bytecode_felts": 49043,
+      "sierra_program_felts": 51261,
+      "declare_code_l2_gas": 4112410880,
+      "contract_class_object_bytes": 1900820,
+      "compiled_class_object_bytes": 1331138
+    },
+    "VerifierSwitchGuard": {
+      "casm_bytecode_felts": 1164,
+      "sierra_program_felts": 978,
+      "declare_code_l2_gas": 88408320,
+      "contract_class_object_bytes": 36318,
+      "compiled_class_object_bytes": 27626
+    }
+  },
+  "not_declarable": [
+    "HybridShakeVerifierPfCompact",
+    "HybridShakeVerifierPfRecord"
+  ],
+  "selected": "small",
+  "libfuncs": "every class builds with allowed-libfuncs-deny against network_libfuncs.json",
+  "metrics": {
+    "validate.baseline.mean": 50396185,
+    "validate.baseline.worst": 52177683,
+    "validate.compact.mean": 26431759,
+    "validate.compact.worst": 27915024,
+    "validate.record.mean": 26130688,
+    "validate.record.worst": 27614917,
+    "validate.small.mean": 27215883,
+    "validate.small.worst": 28722966,
+    "validate.smallkr.mean": 26549273,
+    "validate.smallkr.worst": 28056356,
+    "validate.direct.mean": 50045745,
+    "validate.direct.worst": 51827243,
+    "declare.baseline.worst": 52172283,
+    "declare.compact.worst": 27909624,
+    "declare.record.worst": 27609517,
+    "declare.small.worst": 28717566,
+    "declare.smallkr.worst": 28050956,
+    "is_valid.baseline.worst": 52369363,
+    "is_valid.compact.worst": 28106704,
+    "is_valid.record.worst": 27806597,
+    "is_valid.small.worst": 28914646,
+    "is_valid.smallkr.worst": 28248036,
+    "reject.baseline.worst": 52411463,
+    "reject.compact.worst": 27231021,
+    "reject.record.worst": 26915914,
+    "reject.small.worst": 27116653,
+    "reject.smallkr.worst": 26450043,
+    "migrate.baseline": 69386419,
+    "migrate.compact": 44272637,
+    "migrate.record": 43971120,
+    "migrate.small": 45057399,
+    "migrate.smallkr": 44390789,
+    "size.HybridShakeAccount.casm_bytecode_felts": 53237,
+    "size.HybridShakeAccount.sierra_program_felts": 53532,
+    "size.HybridShakeAccount.declare_code_l2_gas": 4377213440,
+    "size.HybridShakeAccount.contract_class_object_bytes": 2038866,
+    "size.HybridShakeAccount.compiled_class_object_bytes": 1439349,
+    "size.HybridShakeVerifierPfCompact.casm_bytecode_felts": 71580,
+    "size.HybridShakeVerifierPfCompact.sierra_program_felts": 71809,
+    "size.HybridShakeVerifierPfCompact.declare_code_l2_gas": 5874137600,
+    "size.HybridShakeVerifierPfCompact.contract_class_object_bytes": 3149439,
+    "size.HybridShakeVerifierPfCompact.compiled_class_object_bytes": 2141080,
+    "size.HybridShakeVerifierPfRecord.casm_bytecode_felts": 77902,
+    "size.HybridShakeVerifierPfRecord.sierra_program_felts": 76146,
+    "size.HybridShakeVerifierPfRecord.declare_code_l2_gas": 6310728960,
+    "size.HybridShakeVerifierPfRecord.contract_class_object_bytes": 3422453,
+    "size.HybridShakeVerifierPfRecord.compiled_class_object_bytes": 2329159,
+    "size.HybridShakeVerifierPfSmall.casm_bytecode_felts": 64163,
+    "size.HybridShakeVerifierPfSmall.sierra_program_felts": 68569,
+    "size.HybridShakeVerifierPfSmall.declare_code_l2_gas": 5437624320,
+    "size.HybridShakeVerifierPfSmall.contract_class_object_bytes": 3350894,
+    "size.HybridShakeVerifierPfSmall.compiled_class_object_bytes": 1741663,
+    "size.HybridShakeVerifierPfSmallKeyRead.casm_bytecode_felts": 63912,
+    "size.HybridShakeVerifierPfSmallKeyRead.sierra_program_felts": 68420,
+    "size.HybridShakeVerifierPfSmallKeyRead.declare_code_l2_gas": 5421249280,
+    "size.HybridShakeVerifierPfSmallKeyRead.contract_class_object_bytes": 3341785,
+    "size.HybridShakeVerifierPfSmallKeyRead.compiled_class_object_bytes": 1735081,
+    "size.HybridMigratableAccount.casm_bytecode_felts": 7719,
+    "size.HybridMigratableAccount.sierra_program_felts": 3546,
+    "size.HybridMigratableAccount.declare_code_l2_gas": 468300800,
+    "size.HybridMigratableAccount.contract_class_object_bytes": 181970,
+    "size.HybridMigratableAccount.compiled_class_object_bytes": 177227,
+    "size.HybridPoseidonAccount.casm_bytecode_felts": 49043,
+    "size.HybridPoseidonAccount.sierra_program_felts": 51261,
+    "size.HybridPoseidonAccount.declare_code_l2_gas": 4112410880,
+    "size.HybridPoseidonAccount.contract_class_object_bytes": 1900820,
+    "size.HybridPoseidonAccount.compiled_class_object_bytes": 1331138,
+    "size.VerifierSwitchGuard.casm_bytecode_felts": 1164,
+    "size.VerifierSwitchGuard.sierra_program_felts": 978,
+    "size.VerifierSwitchGuard.declare_code_l2_gas": 88408320,
+    "size.VerifierSwitchGuard.contract_class_object_bytes": 36318,
+    "size.VerifierSwitchGuard.compiled_class_object_bytes": 27626
+  }
+}

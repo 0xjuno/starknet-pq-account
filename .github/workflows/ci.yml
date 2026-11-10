@@ -13,12 +13,52 @@ jobs:
       - uses: software-mansion/setup-scarb@v1
         with:
           scarb-version: "2.18.0"
+      - name: Candidate crates match baseline + pinned patches
+        run: vendor/provably-fast/falcon-512/make_crates.sh --check
       - name: Build
         working-directory: contracts
         run: scarb build
       - name: Test
         working-directory: contracts
         run: scarb cairo-test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Kit verifier-switch gates
+        working-directory: signer
+        run: npm install --no-package-lock --no-audit --no-fund && node verifier_switch_check.mjs && node verifiers_check.mjs
+      - name: Built classes match the release manifest
+        run: node scripts/release_manifest.mjs --check
+      - name: docs/index.html is built from its template
+        run: node scripts/build_page.mjs --check
+
+  falcon-differential:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: software-mansion/setup-scarb@v1
+        with:
+          scarb-version: "2.18.0"
+      - name: Baseline and candidate verifiers agree with the reference on every vector
+        run: bench/pf03/run.sh
+
+  pf04-budgets:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: software-mansion/setup-scarb@v1
+        with:
+          scarb-version: "2.18.0"
+      - uses: foundry-rs/setup-snfoundry@v5
+        with:
+          starknet-foundry-version: "0.59.0"
+      # setup-snfoundry installs the latest universal-sierra-compiler; pin the one budgets.json
+      # was measured with (it compiles the test classes, so it changes gas).
+      - uses: software-mansion/setup-universal-sierra-compiler@v1
+        with:
+          universal-sierra-compiler-version: "2.10.3"
+      - name: Account-level gas, class sizes and libfuncs within network limits and budgets
+        run: bench/pf04/run.sh --check
 
   recovery:
     runs-on: ubuntu-24.04

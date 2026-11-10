@@ -8,7 +8,7 @@
 
 use starknet::syscalls::deploy_syscall;
 use starknet::{ClassHash, ContractAddress, SyscallResultTrait};
-use crate::hybrid::HybridShakeAccount;
+use crate::hybrid::{HybridShakeAccount, HybridShakeVerifierPfSmall};
 use crate::migratable::HybridMigratableAccount::{ALREADY_REGISTERED, INVALID_DATA, INVALID_PROOF, ONLY_SELF};
 use crate::migratable::LegacyOzLikeAccount::{ILegacyDispatcher, ILegacyDispatcherTrait};
 use crate::migratable::{
@@ -162,6 +162,11 @@ fn verifier() -> ClassHash {
     HybridShakeAccount::TEST_CLASS_HASH.try_into().unwrap()
 }
 
+/// The Provably Fast verifier PF-04 selected (bench/pf04).
+fn small() -> ClassHash {
+    HybridShakeVerifierPfSmall::TEST_CLASS_HASH.try_into().unwrap()
+}
+
 fn proof_with(r: felt252, s: felt252) -> Array<felt252> {
     let mut proof = array![r, s];
     for f in falcon_sig() {
@@ -174,11 +179,30 @@ fn proof() -> Array<felt252> {
     proof_with(ECDSA_R, ECDSA_S)
 }
 
+/// `proof()` with a valid ECDSA half and felt 2 + 31 + 5 (inside the Falcon hint) changed.
+fn tampered_falcon_proof() -> Array<felt252> {
+    let mut tampered = array![];
+    let mut i: u32 = 0;
+    for f in proof() {
+        tampered.append(if i == 2 + 31 + 5 {
+            f + 1
+        } else {
+            f
+        });
+        i += 1;
+    }
+    tampered
+}
+
 fn argent_data(proof: Array<felt252>) -> Array<felt252> {
+    argent_data_for(verifier(), proof)
+}
+
+fn argent_data_for(verifier: ClassHash, proof: Array<felt252>) -> Array<felt252> {
     let m = MigrationData {
         ecdsa_public_key: ECDSA_PK,
         falcon_public_key: falcon_pk(),
-        verifier_class_hash: verifier(),
+        verifier_class_hash: verifier,
         proof,
     };
     let mut data = array![];
@@ -201,12 +225,16 @@ fn deploy_braavos() -> ContractAddress {
 }
 
 fn assert_migrated(address: ContractAddress) {
+    assert_migrated_to(address, verifier());
+}
+
+fn assert_migrated_to(address: ContractAddress, verifier: ClassHash) {
     assert_eq!(starknet::syscalls::get_class_hash_at_syscall(address).unwrap_syscall(), migratable());
     let m = IMigratableDispatcher { contract_address: address };
     assert!(m.is_falcon_registered());
     assert_eq!(m.get_ecdsa_public_key(), ECDSA_PK);
     assert_eq!(m.get_falcon_public_key(), falcon_pk());
-    assert_eq!(m.get_verifier_class_hash(), verifier());
+    assert_eq!(m.get_verifier_class_hash(), verifier);
     let account = IHybridAccountDispatcher { contract_address: address };
     assert_eq!(account.is_valid_signature(REGISTRATION_HASH, proof()), starknet::VALIDATED);
     assert_eq!(account.is_valid_signature(REGISTRATION_HASH, array![ECDSA_R, ECDSA_S]), 0);
@@ -242,18 +270,8 @@ fn argent_upgrade_with_wrong_ecdsa_proof_reverts() {
 #[feature("safe_dispatcher")]
 fn argent_upgrade_with_tampered_falcon_proof_reverts() {
     let address = deploy_argent();
-    let mut tampered = array![];
-    let mut i: u32 = 0;
-    for f in proof() {
-        tampered.append(if i == 2 + 31 + 5 {
-            f + 1
-        } else {
-            f
-        });
-        i += 1;
-    }
     let err = IArgentLikeSafeDispatcher { contract_address: address }
-        .upgrade(migratable(), argent_data(tampered))
+        .upgrade(migratable(), argent_data(tampered_falcon_proof()))
         .unwrap_err();
     assert_eq!(first(err), INVALID_PROOF);
 }
@@ -363,4 +381,82 @@ fn openzeppelin_account_can_migrate_with_proof() {
     IMigratableDispatcher { contract_address: address }
         .migrate(ECDSA_PK, falcon_pk(), verifier(), proof());
     assert_migrated(address);
+}
+
+#[test]
+fn argent_upgrade_migrates_to_the_small_verifier() {
+    let address = deploy_argent();
+    IArgentLikeDispatcher { contract_address: address }
+        .upgrade(migratable(), argent_data_for(small(), proof()));
+    assert_migrated_to(address, small());
+}
+
+#[test]
+fn argent_0_3_upgrade_migrates_to_the_small_verifier() {
+    let address = deploy(Argent03LikeAccount::TEST_CLASS_HASH, ECDSA_PK);
+    let ret = IArgent03LikeDispatcher { contract_address: address }
+        .upgrade(migratable(), argent_data_for(small(), proof()));
+    assert_eq!(ret.len(), 0);
+    assert_migrated_to(address, small());
+}
+
+#[test]
+fn braavos_upgrade_then_migrate_to_the_small_verifier() {
+    let address = deploy_braavos();
+    IBraavosLikeDispatcher { contract_address: address }.upgrade(migratable());
+    IMigratableDispatcher { contract_address: address }
+        .migrate(ECDSA_PK, falcon_pk(), small(), proof());
+    assert_migrated_to(address, small());
+}
+
+// A valid ECDSA half with a bad Falcon half is the only wrong proof that reaches the verifier:
+// a bad ECDSA half fails before Falcon runs.
+#[test]
+#[feature("safe_dispatcher")]
+fn argent_upgrade_to_small_with_tampered_falcon_proof_reverts() {
+    let address = deploy_argent();
+    let err = IArgentLikeSafeDispatcher { contract_address: address }
+        .upgrade(migratable(), argent_data_for(small(), tampered_falcon_proof()))
+        .unwrap_err();
+    assert_eq!(first(err), INVALID_PROOF);
+    // The failed call's class replacement is rolled back with it.
+    assert_eq!(
+        starknet::syscalls::get_class_hash_at_syscall(address).unwrap_syscall(),
+        ArgentLikeAccount::TEST_CLASS_HASH.try_into().unwrap(),
+    );
+}
+
+#[test]
+#[feature("safe_dispatcher")]
+fn argent_0_3_upgrade_to_small_with_tampered_falcon_proof_reverts() {
+    let address = deploy(Argent03LikeAccount::TEST_CLASS_HASH, ECDSA_PK);
+    let err = IArgent03LikeSafeDispatcher { contract_address: address }
+        .upgrade(migratable(), argent_data_for(small(), tampered_falcon_proof()))
+        .unwrap_err();
+    assert_eq!(first(err), INVALID_PROOF);
+    assert_eq!(
+        starknet::syscalls::get_class_hash_at_syscall(address).unwrap_syscall(),
+        Argent03LikeAccount::TEST_CLASS_HASH.try_into().unwrap(),
+    );
+}
+
+#[test]
+#[feature("safe_dispatcher")]
+fn argent_0_3_upgrade_to_small_with_wrong_ecdsa_proof_reverts() {
+    let address = deploy(Argent03LikeAccount::TEST_CLASS_HASH, ECDSA_PK);
+    let err = IArgent03LikeSafeDispatcher { contract_address: address }
+        .upgrade(migratable(), argent_data_for(small(), proof_with(WRONG_ECDSA_R, WRONG_ECDSA_S)))
+        .unwrap_err();
+    assert_eq!(first(err), INVALID_PROOF);
+}
+
+#[test]
+#[feature("safe_dispatcher")]
+fn braavos_migrate_to_small_with_tampered_falcon_proof_reverts() {
+    let address = deploy_braavos();
+    IBraavosLikeDispatcher { contract_address: address }.upgrade(migratable());
+    let err = IMigratableSafeDispatcher { contract_address: address }
+        .migrate(ECDSA_PK, falcon_pk(), small(), tampered_falcon_proof())
+        .unwrap_err();
+    assert_eq!(first(err), INVALID_PROOF);
 }

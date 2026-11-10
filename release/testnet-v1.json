@@ -1,0 +1,124 @@
+{
+  "release": "testnet-v1",
+  "network": "SN_SEPOLIA",
+  "experimental": true,
+  "note": "Experimental, unaudited, testnet only. Class hashes are Sepolia declarations; compact and record cannot be declared there.",
+  "source": {
+    "commit": "82c58b91f6786c66959d5f7ec25960b4bb5bcf28",
+    "cairo_pq_verifiers": "bece5c07eeea5784e570c01108ec000d2d04ae40",
+    "provably_fast_patches": {
+      "compact-fj_3a0b1c78817845a68e1e907928a541e4.patch": "88729bbde794515569b040c4017fdf8b8fe807b72c2d62a3669f4def4bc6324e",
+      "record-fj_c3459a8b07a54bd5828d3fdde899c4e0.patch": "23f3c793b3f9c8b89e787b0492009a36ce4e981cb1ce54eed6defff331b7d2f9",
+      "small-fj_dee1326c0eef48e6989ed0338e9e9785.patch": "6d4a11957b1a7e1f2a996dab2b4af8acdb2d36e74e5e1b2e2ebaca2c6b0cadd5"
+    }
+  },
+  "toolchain": {
+    "scarb": "2.18.0",
+    "cairo": "2.18.0",
+    "sierra": "1.8.0",
+    "snforge": "0.59.0",
+    "universal_sierra_compiler": "2.10.3",
+    "starknet_js": "10.8.0",
+    "noble_post_quantum": "0.6.1"
+  },
+  "classes": {
+    "HybridShakeVerifierPfSmall": {
+      "role": "verifier",
+      "class_hash": "0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1",
+      "compiled_class_hash": "0x7afbe070599bdb8d964f46b4213573c6fae60decbfd457155d20b4782f6733",
+      "sierra_sha256": "6074d42ef04d194c3bd6fd4dcfd25d3f9d67971f68997eca6cc50c068095bcd9",
+      "casm_sha256": "d10cbba795cd73204fe063fb556a243c59041bdc7e1c8fa7019142f4252f1fb7",
+      "declarable": true,
+      "declare_tx": "0x18feecd71b354a738babe560822d471232d6ec6ff5b5097877bc458b3c0cd62"
+    },
+    "HybridShakeAccount": {
+      "role": "verifier",
+      "class_hash": "0x2255fc213bf39d1df2129c9e068b363f2b11a27b70b4b2c48df8ea4275f1c92",
+      "compiled_class_hash": "0x6c7948f9bcc9da08967955093fe832ad29a7e489c669d11de0b388d18e5ef82",
+      "sierra_sha256": "7cdf2813e1a00945e42a23370b8023c9082af9dcf7cc80eef3c48381ef9ff8c7",
+      "casm_sha256": "f79b916984bf05656056cbcf56b754f5215283df9f65b53116328643302f572c",
+      "declarable": true,
+      "declare_tx": null
+    },
+    "HybridPoseidonAccount": {
+      "role": "verifier",
+      "class_hash": "0x7f10b6f2f70e72ef87e97844b5f6f13d384c92afcfed2a1233a03524d359d6f",
+      "compiled_class_hash": "0x59bf763345540a36f1c08d1d21ea861aea529564dbdb144b5f31ec58f6c9c94",
+      "sierra_sha256": "fbc49149f7ae8f562a2cbefe114c03d5b0d18d0cc29df1782311bb8e5477ee83",
+      "casm_sha256": "d6547bd97b8ca766ff6217ce6255948cd7594bdba11ca0e163d12ae380482f75",
+      "declarable": true,
+      "declare_tx": null
+    },
+    "HybridMigratableAccount": {
+      "role": "account",
+      "class_hash": "0x4b067679dbb29516dd79fba49ba1f1b2bc3973b33c74881ff56098d19e27a78",
+      "compiled_class_hash": "0x307723a6d0628b8ff4f60288540e50897131b757bc126b0fc54e09dd98d8558",
+      "sierra_sha256": "8f7bac973262072565d843c7bbe8e2c366db6e8ff9283f3fd345f500f9323efa",
+      "casm_sha256": "7af1571d7f5cdc4bbd5be2102a319abb4675f06272127c80e486418fd1a977a0",
+      "declarable": true,
+      "declare_tx": null
+    },
+    "VerifierSwitchGuard": {
+      "role": "guard",
+      "class_hash": "0x44779ad7a4ea11318759272383a06d06fdf1b7c007ba1e5f38a2096e6e26178",
+      "compiled_class_hash": "0x79781cb6cd2e890c635fd2fed5dea9f65fc1554cf3cf1eb121d73c16067cd90",
+      "sierra_sha256": "a3c218d0ff5383036e5f2d050f3fe4872ce984915e97b91278cce63e9a413538",
+      "casm_sha256": "02da7a079e8ab1d615363040a4a70346d98a41d8a728b52db10f9b6f074e80a0",
+      "declarable": true,
+      "declare_tx": "0x687a8500c3732f619db3a0f8db15ae271a8391282cb52f91b0f3cab69169e23"
+    },
+    "HybridShakeVerifierPfCompact": {
+      "role": "verifier",
+      "class_hash": "0x5e121c050ad841f727873ee3412aedcfb2d7c1c9f8c79a53a73251e79d9d4c7",
+      "compiled_class_hash": "0x369a5f214d810bf57fc649b3eacd7f1863d0f33c2b0a859c653e5179e35f04",
+      "sierra_sha256": "542fcf021dc0cf6001fd3784226d121716733693a39f3b8ddbfed04adde2d5e3",
+      "casm_sha256": "b6e49d48cb4ea857ab27b2da5ad1a7541e31952d28e98c9eb8355c6b997f74b3",
+      "declarable": false,
+      "declare_tx": null
+    },
+    "HybridShakeVerifierPfRecord": {
+      "role": "verifier",
+      "class_hash": "0x281a32f3b7c2eee62405318cd8b074a44ff17f6c804a003f80276b0dc3c905a",
+      "compiled_class_hash": "0x62f5e62400734ebe6e34e5aa2e13b70d2883525383d8af76587a27a2f8c9a3b",
+      "sierra_sha256": "6e4cdc0b14cac5fdde6f055a7d9ceb242f68acbea6d5fa8aa90e9570c3f5efed",
+      "casm_sha256": "312b9df5b521374142c7aedc4d03deafe721bf6c775f358f30c39751d975bf48",
+      "declarable": false,
+      "declare_tx": null
+    }
+  },
+  "verifiers": {
+    "shake-pf-small-v1": "HybridShakeVerifierPfSmall",
+    "shake-baseline": "HybridShakeAccount",
+    "poseidon": "HybridPoseidonAccount"
+  },
+  "default_verifier": "shake-pf-small-v1",
+  "guard_instance": "0x5093253fe6ee74bce57ae826a72bc94ddf02b6fbe20db5512e744a9a304945e",
+  "legacy_account_classes": {
+    "0x7b6d5ed4cbb6c7a2633dd9139c25ffb76bb608cafbba9e424a277a885432b25": {
+      "role": "account",
+      "note": "Earlier HybridMigratableAccount build, declared on Sepolia and still run by existing accounts. Not rebuildable from this release's commit; it has set_verifier_class_hash and is_valid_signature, so the guarded switch works on it (contracts/docs/verifier-replacement.md).",
+      "accounts": [
+        "0x343e3df576edca452f2cc6ac5247fc38a3641912f545e25468e3b7e7de1c0db"
+      ],
+      "accounts_note": "the public demo account"
+    },
+    "0x660679aa09bef2ef29e1a2ebe21ee85d87bacde8746430b380425db5dd3c31b": {
+      "role": "account",
+      "note": "Earlier HybridMigratableAccount build, declared on Sepolia and still run by existing accounts. Not rebuildable from this release's commit; it has set_verifier_class_hash and is_valid_signature, so the guarded switch works on it (contracts/docs/verifier-replacement.md).",
+      "accounts": [
+        "0x61228909093cb162adc6e487f816a5c5845b219341914bf1ae0b4894c80023a",
+        "0x2d21d503e80d0725042bde6c2e9be84fad2c7f951e86628f263cc918e2b2c43"
+      ],
+      "accounts_note": "README Argent and Braavos demo accounts"
+    },
+    "0xae4154b7e35c9475f4875757bcfa2b19ca88fc2e9bd9fa793e82a91ef5815f": {
+      "role": "account",
+      "note": "Earlier HybridMigratableAccount build, declared on Sepolia and still run by existing accounts. Not rebuildable from this release's commit; it has set_verifier_class_hash and is_valid_signature, so the guarded switch works on it (contracts/docs/verifier-replacement.md).",
+      "accounts": [
+        "0x54370be5a940849f13c01f269d95d06c57d15495da594f3e01dfb6eebdb4c41",
+        "0x595808b02d0dafb5bb25b547300b886f359d4063cda64c4020431ceee9e8753"
+      ],
+      "accounts_note": "README in-place OpenZeppelin migration; browser_setup account (one more is listed in verifier-replacement.md)"
+    }
+  }
+}

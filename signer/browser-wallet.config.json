@@ -1,0 +1,6 @@
+{
+  "rpc": "https://api.zan.top/public/starknet-sepolia/rpc/v0_10",
+  "strk": "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+  "recipient": "0x18f5c265d537c7632bea18631b786d8365ceba93a6ff2b66c0ad3e2d5f1817d",
+  "voyager": "https://sepolia.voyager.online"
+}

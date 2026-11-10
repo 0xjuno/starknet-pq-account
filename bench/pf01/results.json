@@ -1,0 +1,538 @@
+{
+ "environment": {
+  "date_utc": "2026-10-26T23:21:21Z",
+  "uname": "Darwin 25.6.0 arm64",
+  "scarb": "scarb 2.18.0 (e6144df0f 2026-04-21) cairo: 2.18.0 (https://crates.io/crates/cairo-lang-compiler/2.18.0) sierra: 1.8.0 arch: aarch64-apple-darwin ",
+  "snforge": "snforge 0.59.0",
+  "usc": "universal-sierra-compiler 2.9.1"
+ },
+ "corpus_vectors": 27,
+ "variants": {
+  "baseline": {
+   "mean_l2_gas": 48401490,
+   "mean_l2_gas_by_blocks": {
+    "8": 45826113,
+    "9": 50172062
+   },
+   "worst_l2_gas": 50182988,
+   "account_casm_bytecode_felts": 52315,
+   "account_sierra_class_bytes": 2142604,
+   "hybrid_classes": {
+    "HybridMigratableAccount": {
+     "casm_bytecode_felts": 7719,
+     "sierra_class_bytes": 237215
+    },
+    "HybridPoseidonAccount": {
+     "casm_bytecode_felts": 49043,
+     "sierra_class_bytes": 2016956
+    },
+    "HybridShakeAccount": {
+     "casm_bytecode_felts": 53237,
+     "sierra_class_bytes": 2167358
+    }
+   },
+   "build_size_warnings": [],
+   "falcon_512_tests": {
+    "passed": 108,
+    "failed": 0,
+    "failing": []
+   },
+   "ntt_tests": {
+    "passed": 20,
+    "failed": 0,
+    "failing": []
+   },
+   "per_vector": [
+    {
+     "id": 0,
+     "blocks": 8,
+     "l2_gas": 45828496
+    },
+    {
+     "id": 1,
+     "blocks": 8,
+     "l2_gas": 45828436
+    },
+    {
+     "id": 2,
+     "blocks": 8,
+     "l2_gas": 45830986
+    },
+    {
+     "id": 3,
+     "blocks": 8,
+     "l2_gas": 45829766
+    },
+    {
+     "id": 4,
+     "blocks": 9,
+     "l2_gas": 50172798
+    },
+    {
+     "id": 5,
+     "blocks": 9,
+     "l2_gas": 50169348
+    },
+    {
+     "id": 6,
+     "blocks": 9,
+     "l2_gas": 50165668
+    },
+    {
+     "id": 7,
+     "blocks": 9,
+     "l2_gas": 50168108
+    },
+    {
+     "id": 8,
+     "blocks": 9,
+     "l2_gas": 50161568
+    },
+    {
+     "id": 9,
+     "blocks": 8,
+     "l2_gas": 45823666
+    },
+    {
+     "id": 10,
+     "blocks": 8,
+     "l2_gas": 45812436
+    },
+    {
+     "id": 11,
+     "blocks": 8,
+     "l2_gas": 45832516
+    },
+    {
+     "id": 12,
+     "blocks": 8,
+     "l2_gas": 45822186
+    },
+    {
+     "id": 13,
+     "blocks": 9,
+     "l2_gas": 50164698
+    },
+    {
+     "id": 14,
+     "blocks": 9,
+     "l2_gas": 50173738
+    },
+    {
+     "id": 15,
+     "blocks": 9,
+     "l2_gas": 50169088
+    },
+    {
+     "id": 16,
+     "blocks": 9,
+     "l2_gas": 50175298
+    },
+    {
+     "id": 17,
+     "blocks": 9,
+     "l2_gas": 50166768
+    },
+    {
+     "id": 18,
+     "blocks": 8,
+     "l2_gas": 45828976
+    },
+    {
+     "id": 19,
+     "blocks": 8,
+     "l2_gas": 45820106
+    },
+    {
+     "id": 20,
+     "blocks": 8,
+     "l2_gas": 45829676
+    },
+    {
+     "id": 21,
+     "blocks": 9,
+     "l2_gas": 50172418
+    },
+    {
+     "id": 22,
+     "blocks": 9,
+     "l2_gas": 50173748
+    },
+    {
+     "id": 23,
+     "blocks": 9,
+     "l2_gas": 50177048
+    },
+    {
+     "id": 24,
+     "blocks": 9,
+     "l2_gas": 50178778
+    },
+    {
+     "id": 25,
+     "blocks": 9,
+     "l2_gas": 50180928
+    },
+    {
+     "id": 26,
+     "blocks": 9,
+     "l2_gas": 50182988
+    }
+   ]
+  },
+  "compact": {
+   "mean_l2_gas": 24437264,
+   "mean_l2_gas_by_blocks": {
+    "8": 23457254,
+    "9": 25111022
+   },
+   "worst_l2_gas": 25920529,
+   "account_casm_bytecode_felts": 72908,
+   "account_sierra_class_bytes": 3760793,
+   "hybrid_classes": {
+    "HybridMigratableAccount": {
+     "casm_bytecode_felts": 7719,
+     "sierra_class_bytes": 237215
+    },
+    "HybridPoseidonAccount": {
+     "casm_bytecode_felts": 53359,
+     "sierra_class_bytes": 2611095
+    },
+    "HybridShakeAccount": {
+     "casm_bytecode_felts": 73833,
+     "sierra_class_bytes": 3785722
+    }
+   },
+   "build_size_warnings": [
+    [
+     "Falcon512ShakeDirectAccount",
+     "86621"
+    ]
+   ],
+   "falcon_512_tests": {
+    "passed": 114,
+    "failed": 0,
+    "failing": []
+   },
+   "ntt_tests": {
+    "passed": 20,
+    "failed": 0,
+    "failing": []
+   },
+   "per_vector": [
+    {
+     "id": 0,
+     "blocks": 8,
+     "l2_gas": 23458720
+    },
+    {
+     "id": 1,
+     "blocks": 8,
+     "l2_gas": 23459630
+    },
+    {
+     "id": 2,
+     "blocks": 8,
+     "l2_gas": 23458850
+    },
+    {
+     "id": 3,
+     "blocks": 8,
+     "l2_gas": 23457620
+    },
+    {
+     "id": 4,
+     "blocks": 9,
+     "l2_gas": 25047436
+    },
+    {
+     "id": 5,
+     "blocks": 9,
+     "l2_gas": 25051826
+    },
+    {
+     "id": 6,
+     "blocks": 9,
+     "l2_gas": 25047186
+    },
+    {
+     "id": 7,
+     "blocks": 9,
+     "l2_gas": 25052556
+    },
+    {
+     "id": 8,
+     "blocks": 9,
+     "l2_gas": 25044656
+    },
+    {
+     "id": 9,
+     "blocks": 8,
+     "l2_gas": 23456350
+    },
+    {
+     "id": 10,
+     "blocks": 8,
+     "l2_gas": 23459330
+    },
+    {
+     "id": 11,
+     "blocks": 8,
+     "l2_gas": 23450690
+    },
+    {
+     "id": 12,
+     "blocks": 8,
+     "l2_gas": 23457190
+    },
+    {
+     "id": 13,
+     "blocks": 9,
+     "l2_gas": 25047416
+    },
+    {
+     "id": 14,
+     "blocks": 9,
+     "l2_gas": 25084159
+    },
+    {
+     "id": 15,
+     "blocks": 9,
+     "l2_gas": 25045546
+    },
+    {
+     "id": 16,
+     "blocks": 9,
+     "l2_gas": 25072039
+    },
+    {
+     "id": 17,
+     "blocks": 9,
+     "l2_gas": 25055626
+    },
+    {
+     "id": 18,
+     "blocks": 8,
+     "l2_gas": 23454340
+    },
+    {
+     "id": 19,
+     "blocks": 8,
+     "l2_gas": 23455000
+    },
+    {
+     "id": 20,
+     "blocks": 8,
+     "l2_gas": 23462070
+    },
+    {
+     "id": 21,
+     "blocks": 9,
+     "l2_gas": 25071109
+    },
+    {
+     "id": 22,
+     "blocks": 9,
+     "l2_gas": 25052636
+    },
+    {
+     "id": 23,
+     "blocks": 9,
+     "l2_gas": 25054846
+    },
+    {
+     "id": 24,
+     "blocks": 9,
+     "l2_gas": 25055676
+    },
+    {
+     "id": 25,
+     "blocks": 9,
+     "l2_gas": 25073109
+    },
+    {
+     "id": 26,
+     "blocks": 9,
+     "l2_gas": 25920529
+    }
+   ]
+  },
+  "record": {
+   "mean_l2_gas": 24136013,
+   "mean_l2_gas_by_blocks": {
+    "8": 23155454,
+    "9": 24810148
+   },
+   "worst_l2_gas": 25620242,
+   "account_casm_bytecode_felts": 81152,
+   "account_sierra_class_bytes": 4025263,
+   "hybrid_classes": {
+    "HybridMigratableAccount": {
+     "casm_bytecode_felts": 7719,
+     "sierra_class_bytes": 237215
+    },
+    "HybridPoseidonAccount": {
+     "casm_bytecode_felts": 53359,
+     "sierra_class_bytes": 2611095
+    },
+    "HybridShakeAccount": {
+     "casm_bytecode_felts": 80155,
+     "sierra_class_bytes": 3994172
+    }
+   },
+   "build_size_warnings": [
+    [
+     "Falcon512ShakeDirectAccount",
+     "86621"
+    ]
+   ],
+   "falcon_512_tests": {
+    "passed": 114,
+    "failed": 0,
+    "failing": []
+   },
+   "ntt_tests": {
+    "passed": 20,
+    "failed": 0,
+    "failing": []
+   },
+   "per_vector": [
+    {
+     "id": 0,
+     "blocks": 8,
+     "l2_gas": 23156433
+    },
+    {
+     "id": 1,
+     "blocks": 8,
+     "l2_gas": 23158683
+    },
+    {
+     "id": 2,
+     "blocks": 8,
+     "l2_gas": 23157233
+    },
+    {
+     "id": 3,
+     "blocks": 8,
+     "l2_gas": 23156673
+    },
+    {
+     "id": 4,
+     "blocks": 9,
+     "l2_gas": 24743509
+    },
+    {
+     "id": 5,
+     "blocks": 9,
+     "l2_gas": 24751069
+    },
+    {
+     "id": 6,
+     "blocks": 9,
+     "l2_gas": 24745589
+    },
+    {
+     "id": 7,
+     "blocks": 9,
+     "l2_gas": 24750369
+    },
+    {
+     "id": 8,
+     "blocks": 9,
+     "l2_gas": 24744079
+    },
+    {
+     "id": 9,
+     "blocks": 8,
+     "l2_gas": 23154063
+    },
+    {
+     "id": 10,
+     "blocks": 8,
+     "l2_gas": 23157043
+    },
+    {
+     "id": 11,
+     "blocks": 8,
+     "l2_gas": 23148403
+    },
+    {
+     "id": 12,
+     "blocks": 8,
+     "l2_gas": 23154903
+    },
+    {
+     "id": 13,
+     "blocks": 9,
+     "l2_gas": 24748409
+    },
+    {
+     "id": 14,
+     "blocks": 9,
+     "l2_gas": 24785072
+    },
+    {
+     "id": 15,
+     "blocks": 9,
+     "l2_gas": 24743629
+    },
+    {
+     "id": 16,
+     "blocks": 9,
+     "l2_gas": 24771562
+    },
+    {
+     "id": 17,
+     "blocks": 9,
+     "l2_gas": 24756699
+    },
+    {
+     "id": 18,
+     "blocks": 8,
+     "l2_gas": 23152723
+    },
+    {
+     "id": 19,
+     "blocks": 8,
+     "l2_gas": 23152043
+    },
+    {
+     "id": 20,
+     "blocks": 8,
+     "l2_gas": 23161793
+    },
+    {
+     "id": 21,
+     "blocks": 9,
+     "l2_gas": 24770052
+    },
+    {
+     "id": 22,
+     "blocks": 9,
+     "l2_gas": 24751209
+    },
+    {
+     "id": 23,
+     "blocks": 9,
+     "l2_gas": 24753329
+    },
+    {
+     "id": 24,
+     "blocks": 9,
+     "l2_gas": 24754829
+    },
+    {
+     "id": 25,
+     "blocks": 9,
+     "l2_gas": 24772722
+    },
+    {
+     "id": 26,
+     "blocks": 9,
+     "l2_gas": 25620242
+    }
+   ]
+  }
+ }
+}

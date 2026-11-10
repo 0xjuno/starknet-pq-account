@@ -41,6 +41,11 @@ from its words, the balance dropped by exactly the migration fee, the hybrid-sig
 succeeded, and an ECDSA-only transfer was rejected in `__validate__`. Sierra versions are read
 from the first three felts of each class's `sierra_program`.
 
+These runs use the baseline `HybridShakeAccount` verifier. Argent 0.5.0, Argent 0.3.1 and Braavos
+1.2.0, one per callback path, were also migrated with the small Provably Fast verifier, with the
+same checks ([`bench/pf04`](../../bench/pf04/README.md#sepolia-receipts),
+[`bench/pf06`](../../bench/pf06/README.md)).
+
 ### Gas
 
 Migrations started from classes compiled with Sierra 1.7.0 (Argent 0.5.0, Braavos 1.2.0) used

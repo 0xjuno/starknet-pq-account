@@ -35,6 +35,8 @@ const save = () => writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 const log = (...a) => console.log(...a);
 const fmt = (wei) => (Number(wei) / 1e18).toFixed(6) + " STRK";
 const provider = new RpcProvider({ nodeUrl: RPC });
+// Sepolia evicts zero-tip transactions from the mempool; set in main() from recent blocks.
+let TIP = 0n;
 const utf8 = (s) => new TextEncoder().encode(s);
 
 // --- the backup profile -------------------------------------------------------------
@@ -93,6 +95,7 @@ async function main() {
   const deployer = JSON.parse(readFileSync(`${KEYS}/deployer-ecdsa.json`, "utf8"));
   const deployerAddress = readFileSync(`${KEYS}/deployer-address.txt`, "utf8").trim();
   const deployerAcc = new Account({ provider, address: deployerAddress, signer: deployer.privateKey });
+  TIP = (await provider.getEstimateTip("latest", { maxBlocks: 5 })).recommendedTip;
   log("deployer:", fmt(await strkBalance(deployerAddress)));
 
   // 1. mnemonic + deterministic derivation, twice
@@ -113,11 +116,11 @@ async function main() {
   if (!(await classAt(address))) {
     if ((await strkBalance(address)) < 5n * 10n ** 18n) {
       const nonce = await provider.getNonceForAddress(deployerAddress, "latest");
-      const t = await deployerAcc.execute(transferCall(address, 6n * 10n ** 18n), { nonce, tip: 0n });
+      const t = await deployerAcc.execute(transferCall(address, 6n * 10n ** 18n), { nonce, tip: TIP });
       await provider.waitForTransaction(t.transaction_hash);
     }
     const oz = new Account({ provider, address, signer: a.ecdsaPriv });
-    const r = await oz.deployAccount({ classHash: OZ_ACCOUNT_CLASS, constructorCalldata: [a.ecdsaPub], addressSalt: a.ecdsaPub, contractAddress: address }, { tip: 0n });
+    const r = await oz.deployAccount({ classHash: OZ_ACCOUNT_CLASS, constructorCalldata: [a.ecdsaPub], addressSalt: a.ecdsaPub, contractAddress: address }, { tip: TIP });
     await provider.waitForTransaction(r.transaction_hash);
     state.deployTx = r.transaction_hash; save();
     log("OZ account deployed:", `${VOYAGER}/tx/${r.transaction_hash}`);
@@ -129,7 +132,7 @@ async function main() {
     const m = await oz.execute([
       { contractAddress: address, entrypoint: "upgrade", calldata: [MIGRATABLE_CLASS] },
       { contractAddress: address, entrypoint: "migrate", calldata: [a.ecdsaPub, num.toHex(a.falconPk.length), ...a.falconPk, VERIFIER_CLASS, num.toHex(proof.length), ...proof] },
-    ], { nonce, tip: 0n, resourceBounds: await bounds(150000000n) });
+    ], { nonce, tip: TIP, resourceBounds: await bounds(150000000n) });
     await provider.waitForTransaction(m.transaction_hash);
     state.migrationTx = m.transaction_hash; save();
     log("migrated in place:", `${VOYAGER}/tx/${m.transaction_hash}`);
@@ -151,7 +154,7 @@ async function main() {
   if (!state.restoredTransferTx) {
     const acc = new Account({ provider, address, signer: new HybridSigner(restored.ecdsaPriv, restored.falconKeyFile) });
     const nonce = await provider.getNonceForAddress(address, "latest");
-    const x = await acc.execute(transferCall(deployerAddress, 10n ** 17n), { nonce, tip: 0n, resourceBounds: await bounds(60000000n) });
+    const x = await acc.execute(transferCall(deployerAddress, 10n ** 17n), { nonce, tip: TIP, resourceBounds: await bounds(60000000n) });
     const rc = await provider.waitForTransaction(x.transaction_hash);
     state.restoredTransferTx = x.transaction_hash; state.restoredTransferStatus = rc.execution_status || rc.status || null; save();
     log("transfer signed with RESTORED keys:", `${VOYAGER}/tx/${x.transaction_hash}`, rc.execution_status || "");

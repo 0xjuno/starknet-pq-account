@@ -8,7 +8,11 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PAGE = resolve(dirname(fileURLToPath(import.meta.url)), "../docs/index.html");
+// PQ_PAGE=<file> drives another build of the page (for example the one on main).
+const PAGE = resolve(process.env.PQ_PAGE || resolve(dirname(fileURLToPath(import.meta.url)), "../docs/index.html"));
+// PQ_EXPECT_VERIFIER=<label>: the account panel must show this verifier after the restore.
+const EXPECT_VERIFIER = process.env.PQ_EXPECT_VERIFIER;
+let failed = false;
 // Any Chromium browser with CDP WebAuthn support; set CHROME_PATH to override.
 const EDGE = process.env.CHROME_PATH || "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
 const PROFILE = join(tmpdir(), "pq-passkey-e2e-profile");
@@ -57,6 +61,12 @@ await load("http://localhost:8765/browser-wallet.html");
 await evalPage(`document.getElementById("demo").click()`);
 await waitFor(`!document.getElementById("send").disabled`, 60000);
 console.log("1 restore:", await text("check"));
+if (EXPECT_VERIFIER) {
+  await waitFor(`!/checking/.test(document.getElementById("verifier").textContent)`, 20000);
+  const shown = await text("verifier");
+  if (shown !== EXPECT_VERIFIER) failed = true;
+  console.log(`  verifier: ${shown} ${shown === EXPECT_VERIFIER ? "(as expected)" : `FAIL: expected ${EXPECT_VERIFIER}`}`);
+}
 
 // 2. lock with a passkey
 await evalPage(`document.getElementById("pk-save").click()`);
@@ -76,8 +86,10 @@ console.log("  unlock:", await text("pk-log"), "|", await text("check"));
 if (!(await evalPage(`document.getElementById("send").disabled`))) {
   await evalPage(`document.getElementById("send").click()`);
   await waitFor(`/SUCCEEDED|REVERTED|Failed/.test(document.getElementById("log").textContent)`, 180000);
-  console.log("4 send:", (await text("log")).replace(/\n/g, " | "));
-}
+  const sent = await text("log");
+  if (!/SUCCEEDED/.test(sent)) failed = true;
+  console.log("4 send:", sent.replace(/\n/g, " | "));
+} else failed = true;
 
 ws.close(); edge.kill(); server.close();
-process.exit(0);
+process.exit(failed ? 1 : 0);

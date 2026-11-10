@@ -93,6 +93,7 @@
           <dt>ECDSA public key</dt><dd id="ecpk"></dd>
           <dt>Falcon key (first felt)</dt><dd id="fpk"></dd>
           <dt>On-chain check</dt><dd id="check"></dd>
+          <dt>Verifier</dt><dd id="verifier"></dd>
         </dl>
       </div></section>
 
@@ -133,7 +134,7 @@
         <h3>__validate__</h3>
         <ul>
           <li>ECDSA over the tx hash, against the stored STARK key</li>
-          <li>Falcon-512 over the same hash, by library call to the verifier class (OpenZeppelin cairo-pq-verifiers, SHAKE-256)</li>
+          <li>Falcon-512 over the same hash, by library call to the account's verifier class (SHAKE-256 Falcon-512: OpenZeppelin cairo-pq-verifiers, or the Provably Fast small verifier)</li>
           <li>Both have to pass</li>
         </ul>
       </div>
@@ -172,6 +173,7 @@ import { sha256, sha512 } from "https://cdn.jsdelivr.net/npm/@noble/hashes@1.6.1
 const CONFIG = __CONFIG__;
 const PUBLIC_DEMO_MNEMONIC = "clip west volume icon sibling act dirt easily magnet fuel rigid robust lunar pause deer crisp reunion slogan wrist choice wisdom scene blossom salt";
 const ROOTS = __ROOTS__;
+__PAGE_VERIFIER__
 const Q = 12289, N = 512, SQR1 = 1479;
 const OZ_CLASS = "0x05b4b537eaa2399e3aa99c4e2e0208ebd6c71bc1467938cd52c798c601e43564";
 const $ = (id) => document.getElementById(id);
@@ -251,6 +253,11 @@ async function bounds() {
     l2_gas: { max_amount: 70000000n, max_price_per_unit: (BigInt(b.l2_gas_price.price_in_fri) * 5n) / 4n },
   };
 }
+// Sepolia evicts zero-tip transactions from the mempool: pay the tip recent blocks paid, or, if
+// that lookup fails, the 1e8 fri per L2 gas every Sepolia transaction paid on 2026-10-27.
+async function tip() {
+  try { return (await provider.getEstimateTip("latest", { maxBlocks: 5 })).recommendedTip; } catch { return 100000000n; }
+}
 const transfer = () => ({ contractAddress: CONFIG.strk, entrypoint: "transfer", calldata: CallData.compile({ recipient: CONFIG.recipient, amount: cairo.uint256(10n ** 16n) }) });
 
 // Derives both keys from a seed, then checks the Falcon key registered on-chain.
@@ -261,6 +268,11 @@ async function activate(newSeed, source) {
   const mine = pack512(ntt(decodePublicKey(keys.falconPublicKey))).map((x) => num.toHex(x));
   $("acct").innerHTML = `<a href="${CONFIG.voyager}/contract/${address}" target="_blank" rel="noopener">${address}</a>`;
   $("ecpk").textContent = keys.ecdsaPublicKey; $("fpk").textContent = mine[0]; $("keys").hidden = false;
+  $("verifier").textContent = "checking...";
+  // Signing is the same for every SHAKE-256 verifier; this only shows which one the account uses.
+  provider.callContract({ contractAddress: address, entrypoint: "get_verifier_class_hash", calldata: [] }, "latest")
+    .then((r) => r[0], () => null)
+    .then((h) => { $("verifier").textContent = verifierLabel(h, CONFIG.verifiers); });
   const onchain = await provider.callContract({ contractAddress: address, entrypoint: "get_falcon_public_key", calldata: [] }, "latest");
   const match = JSON.stringify(onchain.slice(1).map((x) => num.toHex(x))) === JSON.stringify(mine);
   $("check").innerHTML = match ? `<span class="ok">Falcon key on-chain matches the key restored from ${source}</span>` : '<span class="bad">On-chain key does not match</span>';
@@ -354,7 +366,7 @@ refreshPasskeyUi();
 async function send(withFalcon) {
   const acc = new Account({ provider, address, signer: new HybridSigner(keys.ecdsaPrivateKey, withFalcon) });
   const nonce = await provider.getNonceForAddress(address, "latest");
-  return acc.execute(transfer(), { nonce, tip: 0n, resourceBounds: await bounds() });
+  return acc.execute(transfer(), { nonce, tip: await tip(), resourceBounds: await bounds() });
 }
 $("send").addEventListener("click", async () => {
   $("send").disabled = true;
