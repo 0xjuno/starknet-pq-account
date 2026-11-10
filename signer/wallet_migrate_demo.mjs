@@ -73,7 +73,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Sepolia evicts zero-tip transactions from the mempool; set in main() from recent blocks.
 let TIP = 0n;
 
-async function retry(fn, tries = 6) {
+async function retry(fn, tries = 10) {
   for (let i = 0; ; i++) {
     try { return await fn(); } catch (e) {
       if (i + 1 >= tries || !/cu limit|too fast|429|rate|ECONNRESET|fetch failed/i.test(e?.message || "")) throw e;
