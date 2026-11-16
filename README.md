@@ -8,15 +8,19 @@ from the browser.
 
 - Real accounts of eleven wallet classes (Argent 0.3.0 to 0.5.0, Xverse, OKX, Braavos 1.0 to
   1.2, two OpenZeppelin classes) were migrated on Sepolia.
-- Of the 621 BTC delegated in Starknet staking, 564 BTC (90.7%) sits in accounts this kit
-  migrates today, including all ten largest delegators.
-- Of 400 accounts that sent mainnet transactions in a 0.8-hour window, 362 (90.5%) use a class
-  this kit migrates. See [`contracts/docs/wallet-coverage.md`](contracts/docs/wallet-coverage.md).
+- Of the 686 BTC delegated in Starknet staking on November 16, 2026, 631 BTC (92.0%) sits in
+  accounts this kit migrates today, including all ten largest delegators.
+- In two samples of 400 accounts that sent mainnet transactions (October 19 and November 16,
+  2026), 90.5% and 87.5% use a class this kit migrates. See [`contracts/docs/wallet-coverage.md`](contracts/docs/wallet-coverage.md).
 - A validator's staker and operational accounts were migrated in place while staking on Sepolia,
   and attested with the hybrid signature the next epoch. See [`contracts/docs/validators.md`](contracts/docs/validators.md).
 - With the Provably Fast small verifier from the StarkWare and Starknet Foundation Falcon
   challenge, integrated by [Ryan Williams](#credits), a hybrid transfer uses 29.6M L2 gas instead
   of 53.9M (-45%).
+
+Start here: wallet teams, the [wallet integration guide](contracts/docs/wallet-integration.md);
+validators, [migrating staker and operational accounts](contracts/docs/validators.md); security
+reviewers, [SECURITY.md](SECURITY.md) and the proposed review scope.
 
 > **Experimental. Unaudited. Testnet only.** Do not hold real funds with these contracts.
 

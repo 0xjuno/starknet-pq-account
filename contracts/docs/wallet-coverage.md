@@ -79,17 +79,47 @@ Limits of this sample: under one hour, counted per sender, so it leans toward fr
 such as bots and market makers. It shows which account classes are in active use, not how much
 value they hold; the BTC staking measurement below weights by value.
 
+Second sample, same method
+([`signer/survey/mainnet-summary-2026-11-16.json`](../../signer/survey/mainnet-summary-2026-11-16.json)):
+blocks 18,060,385 to 18,062,339 (about 0.9 hours on 2026-11-16), 6,980 INVOKE transactions, 400
+unique senders.
+
+- 350 of 400 senders (87.5%) use a class this kit migrates; they sent 81.7% of the INVOKE
+  transactions in the window. 4 of them have an Argent guardian.
+- 344 of 400 (86.0%) are on the eleven classes migrated on Sepolia.
+- Not covered (50): 22 accounts with no self-upgrade entry point, 17 Cairo 0 accounts, 3 Braavos
+  accounts with a hardware or passkey signer, 8 others.
+
+The two samples differ by three points; read them as "close to nine in ten senders", not as a
+precise share.
+
 ## Mainnet: BTC staked on Starknet
 
 `signer/btc_staking_coverage.mjs` lists every BTC delegation pool of the staking contract
 (`NewDelegationPool` events for WBTC, tBTC, SolvBTC, LBTC and strkBTC), every member of those
 pools (`NewPoolMember` events), each member's current delegated amount
 (`get_pool_member_info_v1`), and classifies each delegating account with `inspectAccount`.
-Read-only; aggregate in
-[`signer/survey/btc-staking-coverage-2026-10-19.json`](../../signer/survey/btc-staking-coverage-2026-10-19.json).
+Read-only. On a public RPC node the pool scan from genesis can stall, so
+`signer/btc_pools_update.mjs` extends a cached pool list from its last block instead.
 
-On 2026-10-19: 484 BTC pools, 882 delegating accounts, 621.3 BTC delegated (SolvBTC 409.8,
-WBTC 174.8, strkBTC 30.4, tBTC 5.3, LBTC 1.1).
+On 2026-11-16
+([`signer/survey/btc-staking-coverage-2026-11-16.json`](../../signer/survey/btc-staking-coverage-2026-11-16.json)):
+485 BTC pools, 885 delegating accounts, 686.2 BTC delegated (SolvBTC 476.2, WBTC 172.2,
+strkBTC 32.1, tBTC 5.3, LBTC 0.3).
+
+- 631.1 BTC (92.0%) sits in 786 accounts this kit migrates today; 613.3 BTC of it in Argent
+  0.4.0 accounts.
+- The ten largest delegating accounts hold 501.5 BTC (73.1%); all ten are Argent 0.4.0 accounts
+  that migrate with one `upgrade` call. Of the 834 accounts delegating under 1 BTC, 757 (91%)
+  can migrate.
+- Not covered: 42.2 BTC in accounts of other classes (likely contracts rather than personal
+  wallets; unconfirmed), 11.9 BTC in Braavos accounts with a hardware or passkey signer,
+  0.9 BTC in an Argent-based class under another name.
+
+Earlier measurement, same method, on 2026-10-19
+([`signer/survey/btc-staking-coverage-2026-10-19.json`](../../signer/survey/btc-staking-coverage-2026-10-19.json)):
+484 BTC pools, 882 delegating accounts, 621.3 BTC delegated (SolvBTC 409.8, WBTC 174.8,
+strkBTC 30.4, tBTC 5.3, LBTC 1.1).
 
 - 563.6 BTC (90.7%) sits in 788 accounts this kit migrates today; 545.9 BTC of it in Argent
   0.4.0 accounts.

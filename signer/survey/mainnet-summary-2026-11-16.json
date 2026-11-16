@@ -1,0 +1,40 @@
+{
+  "network": "starknet-mainnet",
+  "rpc": "https://api.zan.top/public/starknet-mainnet/rpc/v0_10",
+  "blocks": [
+    18060385,
+    18062339
+  ],
+  "hours": 0.9,
+  "uniqueSenders": 400,
+  "invokeTxs": 6980,
+  "byKind": {
+    "argent 0.5.0": 2,
+    "argent 0.3.0": 70,
+    "braavos 001.002.000": 25,
+    "argent 0.4.0": 197,
+    "other": 8,
+    "openzeppelin": 46,
+    "fixed-key": 22,
+    "argent 0.3.1": 3,
+    "braavos 001.000.000": 6,
+    "cairo0": 17,
+    "braavos 001.001.000": 4
+  },
+  "notMigratableReasons": {
+    "(migratable)": 350,
+    "other account": 8,
+    "fixed-key account": 22,
+    "Cairo 0 account: the wallet must upgrade it to Cairo 1 first": 17,
+    "Braavos with a hardware or passkey signer (would be dropped)": 3
+  },
+  "migratable": 350,
+  "migratableShare": "87.5%",
+  "migratableWithoutExtraSignatures": 346,
+  "migratableWithoutExtraSignaturesShare": "86.5%",
+  "needsGuardian": 4,
+  "migratableOnSepoliaTestedClasses": 344,
+  "migratableOnSepoliaTestedClassesShare": "86.0%",
+  "migratableTxShare": "81.7%",
+  "takenAt": "2026-11-16T16:01:10.098Z"
+}
