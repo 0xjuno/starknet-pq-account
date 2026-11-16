@@ -12,6 +12,11 @@ from the browser.
   migrates today, including all ten largest delegators.
 - Of 400 accounts that sent mainnet transactions in a 0.8-hour window, 362 (90.5%) use a class
   this kit migrates. See [`contracts/docs/wallet-coverage.md`](contracts/docs/wallet-coverage.md).
+- A validator's staker and operational accounts were migrated in place while staking on Sepolia,
+  and attested with the hybrid signature the next epoch. See [`contracts/docs/validators.md`](contracts/docs/validators.md).
+- With the Provably Fast small verifier from the StarkWare and Starknet Foundation Falcon
+  challenge, integrated by [Ryan Williams](#credits), a hybrid transfer uses 29.6M L2 gas instead
+  of 53.9M (-45%).
 
 > **Experimental. Unaudited. Testnet only.** Do not hold real funds with these contracts.
 
