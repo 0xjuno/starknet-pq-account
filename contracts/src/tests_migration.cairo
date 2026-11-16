@@ -38,7 +38,7 @@ fn sig_with(r: felt252, s: felt252) -> Array<felt252> {
     sig
 }
 
-fn hybrid_sig() -> Array<felt252> {
+pub fn hybrid_sig() -> Array<felt252> {
     sig_with(ECDSA_R, ECDSA_S)
 }
 
@@ -56,7 +56,7 @@ fn tamper(mut sig: Array<felt252>, index: u32) -> Array<felt252> {
     out
 }
 
-fn deploy_legacy() -> ContractAddress {
+pub fn deploy_legacy() -> ContractAddress {
     let (address, _) = deploy_syscall(
         LegacyOzLikeAccount::TEST_CLASS_HASH, 0, array![ECDSA_PK].span(), false,
     )
@@ -71,7 +71,7 @@ fn upgrade_only(address: ContractAddress) {
 }
 
 /// The recommended atomic flow as self-calls: upgrade, then migrate with the proof.
-fn migrate(address: ContractAddress) {
+pub fn migrate(address: ContractAddress) {
     upgrade_only(address);
     IMigratableDispatcher { contract_address: address }
         .migrate(ECDSA_PK, falcon_pk(), verifier(), hybrid_sig());
