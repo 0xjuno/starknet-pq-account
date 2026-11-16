@@ -1,0 +1,120 @@
+{
+    "network":  "starknet-sepolia",
+    "takenAt":  "2026-11-16T17:08:15.899Z",
+    "consumer":  "0x67d34bfa90482ccb1528c98c9cbb3b878b9568991483ba0e890525d5908913d",
+    "consumerClass":  "0x232f58b222d66ab83898762aef128261c066e634252b625afb35595fc2fb144",
+    "deployTx":  "0x2b1a371abc1a598eba50ff34ea490694eee638b348876ed1eb4135cfd1b7c0a",
+    "message":  "0x5a8ab87d675efc23ea15fd6527d0319107eeb0a667d5be2ffa9292733650539",
+    "checksPerTransaction":  4,
+    "method":  "(l2_gas of check_many x N) - (l2_gas of check_many x 0), divided by N",
+    "runs":  {
+                 "sierra-1.6":  {
+                                    "ecdsa":  {
+                                                  "address":  "0x18f5c265d537c7632bea18631b786d8365ceba93a6ff2b66c0ad3e2d5f1817d",
+                                                  "signatureFelts":  2,
+                                                  "checkPasses":  true,
+                                                  "times0":  {
+                                                                 "tx":  "0x7e959a0a0442ad7d9bfee1a2a090ad08560619638a731d716d21ec17686a0a4",
+                                                                 "status":  "SUCCEEDED",
+                                                                 "l2Gas":  1021440
+                                                             },
+                                                  "times4":  {
+                                                                 "tx":  "0x3049f6b4670721c1df481f80c8ec7971f1ca27bfe1259351ec1e7666c0e9777",
+                                                                 "status":  "SUCCEEDED",
+                                                                 "l2Gas":  1901440
+                                                             },
+                                                  "perCheckL2Gas":  220000
+                                              },
+                                    "baseline":  {
+                                                     "address":  "0x54512ad1451450e6713db2c7fe6f69638d0fb471d6788c193dfa199ecbb9c19",
+                                                     "verifier":  "0x2255fc213bf39d1df2129c9e068b363f2b11a27b70b4b2c48df8ea4275f1c92",
+                                                     "signatureFelts":  62,
+                                                     "checkPasses":  true,
+                                                     "times0":  {
+                                                                    "tx":  "0x6476f2ca6dd020745de195fada7942e3f844def7b3faae16b8aa8fa05120391",
+                                                                    "status":  "SUCCEEDED",
+                                                                    "l2Gas":  1488640
+                                                                },
+                                                     "times4":  {
+                                                                    "tx":  "0x44f8664b6e3a6cf276ac732025a7f3c6e9fc0f733b54492a7d75717736ccba6",
+                                                                    "status":  "SUCCEEDED",
+                                                                    "l2Gas":  496808640
+                                                                },
+                                                     "perCheckL2Gas":  123830000
+                                                 },
+                                    "small":  {
+                                                  "address":  "0x343e3df576edca452f2cc6ac5247fc38a3641912f545e25468e3b7e7de1c0db",
+                                                  "verifier":  "0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1",
+                                                  "signatureFelts":  62,
+                                                  "checkPasses":  true,
+                                                  "times0":  {
+                                                                 "tx":  "0x2e6efc6556c7c0008d072a766166e527cb6f23484f7ef6c498f146416613c6d",
+                                                                 "status":  "SUCCEEDED",
+                                                                 "l2Gas":  1488640
+                                                             },
+                                                  "times4":  {
+                                                                 "tx":  "0x7c13f629c67544da9ef8876334f12b069da3ef07f25723ae0cb21a2a3cac2fd",
+                                                                 "status":  "SUCCEEDED",
+                                                                 "l2Gas":  278888640
+                                                             },
+                                                  "perCheckL2Gas":  69350000
+                                              },
+                                    "sender":  "0x18f5c265d537c7632bea18631b786d8365ceba93a6ff2b66c0ad3e2d5f1817d",
+                                    "note":  "OpenZeppelin account 0x05b4b537 (Sierra 1.6.0): checks run in Cairo-steps accounting"
+                                },
+                 "sierra-1.8":  {
+                                    "sender":  "0x54512ad1451450e6713db2c7fe6f69638d0fb471d6788c193dfa199ecbb9c19",
+                                    "note":  "migrated account 0x5faf94f2 (Sierra 1.8.0): checks run in Sierra gas",
+                                    "ecdsa":  {
+                                                  "address":  "0x18f5c265d537c7632bea18631b786d8365ceba93a6ff2b66c0ad3e2d5f1817d",
+                                                  "signatureFelts":  2,
+                                                  "checkPasses":  true,
+                                                  "times0":  {
+                                                                 "tx":  "0x2b821f1e64ce00ef673f0b193727c2f59dce5415dcee89c5487cc587eb14bd9",
+                                                                 "status":  "SUCCEEDED",
+                                                                 "l2Gas":  53525003
+                                                             },
+                                                  "times4":  {
+                                                                 "tx":  "0x2c41b1c7c6e8ef78a177a6b95f1b9df6167222a191c5d3c01f401d07dec8a1e",
+                                                                 "status":  "SUCCEEDED",
+                                                                 "l2Gas":  54638213
+                                                             },
+                                                  "perCheckL2Gas":  278303
+                                              },
+                                    "baseline":  {
+                                                     "address":  "0x54512ad1451450e6713db2c7fe6f69638d0fb471d6788c193dfa199ecbb9c19",
+                                                     "verifier":  "0x2255fc213bf39d1df2129c9e068b363f2b11a27b70b4b2c48df8ea4275f1c92",
+                                                     "signatureFelts":  62,
+                                                     "checkPasses":  true,
+                                                     "times0":  {
+                                                                    "tx":  "0x511a3957cd9c1456d1f6dbc9052368108bee2f5086f05df64ddb9a88199e091",
+                                                                    "status":  "SUCCEEDED",
+                                                                    "l2Gas":  49634731
+                                                                },
+                                                     "times4":  {
+                                                                    "tx":  "0x10c3c9ff2bfaf7ff3ab82d06d6fecf0d21abc1da5a4b6ff7a46f5490c052d61",
+                                                                    "status":  "SUCCEEDED",
+                                                                    "l2Gas":  247925337
+                                                                },
+                                                     "perCheckL2Gas":  49572652
+                                                 },
+                                    "small":  {
+                                                  "address":  "0x343e3df576edca452f2cc6ac5247fc38a3641912f545e25468e3b7e7de1c0db",
+                                                  "verifier":  "0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1",
+                                                  "signatureFelts":  62,
+                                                  "checkPasses":  true,
+                                                  "times0":  {
+                                                                 "tx":  "0x11a40f14a26b100f583b5afdfd4744685dc5b55c2c21cbd4bbbaf49acd0b534",
+                                                                 "status":  "SUCCEEDED",
+                                                                 "l2Gas":  53988673
+                                                             },
+                                                  "times4":  {
+                                                                 "tx":  "0x49acd8d9b14875f2eb14e92f1009c743c1a3237cbfa3b94d0cc338f0404bd96",
+                                                                 "status":  "SUCCEEDED",
+                                                                 "l2Gas":  157238619
+                                                             },
+                                                  "perCheckL2Gas":  25812487
+                                              }
+                                }
+             }
+}

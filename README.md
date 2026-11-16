@@ -19,6 +19,7 @@ from the browser.
   of 53.9M (-45%).
 
 Start here: wallet teams, the [wallet integration guide](contracts/docs/wallet-integration.md);
+contract developers, [checking signatures from migrated accounts](contracts/docs/integration.md);
 validators, [migrating staker and operational accounts](contracts/docs/validators.md); security
 reviewers, [SECURITY.md](SECURITY.md) and the proposed review scope.
 
@@ -329,7 +330,7 @@ commit `5145a818c9512b4a443507d3375e75dae3076af6`.
 ```sh
 cd contracts
 scarb build
-scarb cairo-test          # 105 tests
+scarb cairo-test          # 109 tests
 
 cd ../signer
 npm install
@@ -349,6 +350,7 @@ node mainnet_survey.mjs 400     # read-only: which recent mainnet senders could 
 node btc_staking_coverage.mjs   # read-only: how much staked BTC sits in migratable accounts
 node validator_coverage.mjs     # read-only: which validators' staker and operational accounts could migrate
 node validator_sepolia.mjs      # stake, attest, migrate both accounts in place, attest hybrid, unstake
+node consumer_sepolia.mjs       # what a contract pays to check a migrated account's signature
 ```
 
 ## Credits

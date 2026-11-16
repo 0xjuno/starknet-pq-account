@@ -104,6 +104,8 @@ browser.
   Cairo 0 accounts and accounts without a self-upgrade entry point (`inspectAccount` says why).
 - **After migration.** Paymasters and session keys (SRC-9 outside execution) are not available
   yet; neither are Argent escapes nor Braavos withdrawal limits.
+- **Contracts your users sign for.** Dapps that check signatures through `is_valid_signature` keep
+  working; ones that read the ECDSA key and verify it themselves do not. See [`integration.md`](integration.md).
 - **Verifier choice.** `migrationCalls` and `switchVerifier` refuse classes outside the pinned
   list. The verifier runs in the account's storage and decides which signatures pass: install only
   classes you have reviewed.
