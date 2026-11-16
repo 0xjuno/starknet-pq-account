@@ -5,7 +5,7 @@
 //   const keys = prepareKeys(deriveAccountKeys(words, 0, "argentx"), roots);
 //   const calls = migrationCalls(info, keys, { migratableClass, verifierClass });
 //   // migratableClass and verifierClass: the pinned hashes in release/testnet-v1.json
-//   // (verifiers.mjs: MIGRATABLE_CLASS, verifierClass("shake-pf-small-v1"))
+//   // (verifiers.mjs: MIGRATABLE_CLASS, verifierClass("shake-baseline") or verifierClass("shake-pf-small-v1"))
 //   await new Account({ provider, address, signer: keys.ecdsaPrivateKey }).execute(calls);
 //   // from now on: new Account({ provider, address, signer: new HybridSigner(keys) })
 //   // later, to change verifier (same scheme only):
@@ -19,15 +19,17 @@ export const REGISTER_DOMAIN = "starknet-pq-register-v1";
 export const ROTATE_DOMAIN = "starknet-pq-rotate-v1";
 
 /**
- * Verifier classes built from this repository (contracts/src/hybrid.cairo) and declared on
- * Sepolia. The verifier runs in the account's own storage and decides which signatures pass, so
- * a wallet should only ever install classes it has reviewed. migrationCalls and
- * verifierSwitchCall refuse anything not in `allowedVerifiers` (this list unless the caller
- * passes its own).
+ * Verifier classes built from this repository (contracts/src/hybrid.cairo, hybrid_pf.cairo) and
+ * declared on Sepolia: the same set release/testnet-v1.json pins under `verifiers`
+ * (verifiers_check.mjs keeps the two equal). The verifier runs in the account's own storage and
+ * decides which signatures pass, so a wallet should only ever install classes it has reviewed.
+ * migrationCalls and verifierSwitchCall refuse anything not in `allowedVerifiers` (this list
+ * unless the caller passes its own).
  */
 export const KNOWN_VERIFIERS = {
-  "0x2255fc213bf39d1df2129c9e068b363f2b11a27b70b4b2c48df8ea4275f1c92": "HybridShakeAccount (SHAKE-256 hash-to-point)",
-  "0x7f10b6f2f70e72ef87e97844b5f6f13d384c92afcfed2a1233a03524d359d6f": "HybridPoseidonAccount (Poseidon hash-to-point, needs a matching signer)",
+  "0x2255fc213bf39d1df2129c9e068b363f2b11a27b70b4b2c48df8ea4275f1c92": "HybridShakeAccount (SHAKE-256 hash-to-point; shake-baseline)",
+  "0x7f10b6f2f70e72ef87e97844b5f6f13d384c92afcfed2a1233a03524d359d6f": "HybridPoseidonAccount (Poseidon hash-to-point, needs a matching signer; poseidon)",
+  "0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1": "HybridShakeVerifierPfSmall (SHAKE-256, Provably Fast small patch; shake-pf-small-v1)",
 };
 
 function assertAllowedVerifier(verifierClass, allowedVerifiers) {

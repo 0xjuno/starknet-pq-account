@@ -1,6 +1,6 @@
 // Prepares the browser-wallet demo on Sepolia. TESTNET ONLY.
 //   1. the verifier and migratable classes are pinned in release/testnet-v1.json and already
-//      declared: PQ_VERIFIER=<id> picks a SHAKE-256 verifier, default shake-pf-small-v1
+//      declared: PQ_VERIFIER=<id> picks a SHAKE-256 verifier, default shake-baseline
 //      (--print-config prints the choice and sends nothing)
 //   2. new mnemonic -> keys (pq_keys.mjs, profile v0.1); OZ account funded, deployed, migrated in
 //      place with that verifier and the noble-derived Falcon key

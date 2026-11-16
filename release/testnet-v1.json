@@ -4,7 +4,7 @@
   "experimental": true,
   "note": "Experimental, unaudited, testnet only. Class hashes are Sepolia declarations; compact and record cannot be declared there.",
   "source": {
-    "commit": "82c58b91f6786c66959d5f7ec25960b4bb5bcf28",
+    "commit": "4832ddd09f533718ba3056785fb1ca30edd76b50",
     "cairo_pq_verifiers": "bece5c07eeea5784e570c01108ec000d2d04ae40",
     "provably_fast_patches": {
       "compact-fj_3a0b1c78817845a68e1e907928a541e4.patch": "88729bbde794515569b040c4017fdf8b8fe807b72c2d62a3669f4def4bc6324e",
@@ -51,10 +51,10 @@
     },
     "HybridMigratableAccount": {
       "role": "account",
-      "class_hash": "0x4b067679dbb29516dd79fba49ba1f1b2bc3973b33c74881ff56098d19e27a78",
-      "compiled_class_hash": "0x307723a6d0628b8ff4f60288540e50897131b757bc126b0fc54e09dd98d8558",
-      "sierra_sha256": "8f7bac973262072565d843c7bbe8e2c366db6e8ff9283f3fd345f500f9323efa",
-      "casm_sha256": "7af1571d7f5cdc4bbd5be2102a319abb4675f06272127c80e486418fd1a977a0",
+      "class_hash": "0x5faf94f20ce4b58b22805b4199b889adb302904301890d3d723bea7b62a9f72",
+      "compiled_class_hash": "0x212a13d81e91c5b21b0b68997985c434e2c0af171f8194d119fb43cbde7348b",
+      "sierra_sha256": "29585e8e9726d0aa338e262160fab02bb33e08c9dc9fecfcd41e71fad0e1e4c3",
+      "casm_sha256": "af1c5dda2d5fbbae5baebee2811013a1189c38651ed45f18056c009bac483034",
       "declarable": true,
       "declare_tx": null
     },
@@ -91,9 +91,48 @@
     "shake-baseline": "HybridShakeAccount",
     "poseidon": "HybridPoseidonAccount"
   },
-  "default_verifier": "shake-pf-small-v1",
+  "default_verifier": "shake-baseline",
   "guard_instance": "0x5093253fe6ee74bce57ae826a72bc94ddf02b6fbe20db5512e744a9a304945e",
   "legacy_account_classes": {
+    "0x7efafbfbaf02af30bc17d55366392e129fea252d7597650da45a61d0869f75a": {
+      "role": "account",
+      "note": "Build of 2026-11-02 (key-rotation and verifier-switch proofs, commit 5a1269f). Declared on Sepolia and still run by existing accounts; the migration path is the one this release builds.",
+      "accounts": [
+        "0xe4b423f358bad1c5092a616ab323bb6fb63439d94310a30f61d00698ec66f6",
+        "0x1647e94cee78c41fd722167a701da120a8f70d0ce9208a1931de51c5f607f17",
+        "0x347e88dae102629c2d231a92c2b7a8c69feec24d35e890f0dd2ab211e30be74",
+        "0x5a97752a6294b9c67f85decb7af7df9cb6c300c0ffe5cee5e4abfc779109b42",
+        "0x47e28f1884cd5b6c6baf971782750164fbcbae169e6e81428a296d0e5c3503b",
+        "0x5e3c48d2e548dabe24b31ddd40d6a89cec993f5fe73b9f030f8eba318517151",
+        "0x6bd5876e1bc6f09b2b57fc97bbe2d22b18ea39ed8468ed4cdd110acc3e32b31",
+        "0x567b41938062fb4e4bf7e65ba6c5b56846aeca42941e6449d6124fb817fca6f",
+        "0x253b2cfc9b7ffd7c700aeb4f31d39bf824369d75ff081a0ce10bdc4c290530d",
+        "0x4e63b5715d1c4a3beacbb41cfcd563867cee2fdfa7e42bdd5bf1be49ef23f4d",
+        "0x6e636891634706d480c36a517b4f286fed1d3d96a9c05e46cdf00bacaa34632",
+        "0x4100cd59ca70a8a671101544c9323e38c67cf7a4dfad9e5370e623fc4106a1c",
+        "0x1867774df6f3547fce5c22a1ea47bcd742938b58e7719f22506bda7712fde46",
+        "0x4b69fe1ec9c07293fa4eb387ed8d9d8759aaf0451320b5ea549cc08ab7277e8"
+      ],
+      "accounts_note": "wallet-coverage.md run of 2026-11-02 (eleven wallet classes); the rotation account; the Sepolia validator's staker and operational accounts (validators.md)"
+    },
+    "0x4b067679dbb29516dd79fba49ba1f1b2bc3973b33c74881ff56098d19e27a78": {
+      "role": "account",
+      "note": "Build of 2026-10-19 (the class release testnet-v1 first pinned). Earlier HybridMigratableAccount build, declared on Sepolia and still run by existing accounts. Not rebuildable from this release's commit; it has set_verifier_class_hash and is_valid_signature, so the guarded switch works on it (contracts/docs/verifier-replacement.md).",
+      "accounts": [
+        "0x5133950c954293fb4e33ee6d6b86dfabb045a2d4c58e4d5f315106df1f96ee6",
+        "0x5dcc90d5d75d7528af423164d1b130d3e87217e1063765d253dde33519650df",
+        "0x71b8d5f5ae72840e736c2b39dacfea8985a16710cf76df478296dee6a055c7e",
+        "0x646b9e6af851b9308a920a7591517297b8ee6763ae6a8fb747f51926e13f2a1",
+        "0x5c08d1e778c45ba5f9b7445fcc2e31e95ff17ffb582b6396205c7a24c452ad0",
+        "0x7597f5144d08fb585c81ae4a4f6b46e2f8df1baf05b391c3a9014e62efbc1d7",
+        "0x3b65f69e46a10e1ffe4ec8bd13eba8a117a6817a9f72a49e2e23c06aea2f93",
+        "0x44d04cb7c726695d709feecbd41bed7019521639f92a6eda81fe41a984d2a5e",
+        "0x72be0f238a7fd174f2b79c5a84b468ec8db6fa26a28f5e9828e4146ea1584d9",
+        "0x4810ecb43f99ca7f5e617fbb92731ca240aaf7f0827c55b6dc4d3e1e2c57ee9",
+        "0x2e19da9b186071bc542856775d034753d7b9d441d1305cc049dcee2bff4b1b6"
+      ],
+      "accounts_note": "wallet-coverage.md run of 2026-10-19 (eleven wallet classes); bench/pf04 and bench/pf06 accounts are listed in those benches"
+    },
     "0x7b6d5ed4cbb6c7a2633dd9139c25ffb76bb608cafbba9e424a277a885432b25": {
       "role": "account",
       "note": "Earlier HybridMigratableAccount build, declared on Sepolia and still run by existing accounts. Not rebuildable from this release's commit; it has set_verifier_class_hash and is_valid_signature, so the guarded switch works on it (contracts/docs/verifier-replacement.md).",

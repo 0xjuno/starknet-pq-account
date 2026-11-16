@@ -13,27 +13,33 @@ integration from a clean checkout.
 
 | Class | Role | Class hash | On Sepolia |
 | --- | --- | --- | --- |
-| `HybridShakeVerifierPfSmall` | verifier, **default** (`shake-pf-small-v1`) | `0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1` | declared ([0x18feecd7…](https://sepolia.voyager.online/tx/0x18feecd71b354a738babe560822d471232d6ec6ff5b5097877bc458b3c0cd62)) |
-| `HybridShakeAccount` | verifier (`shake-baseline`) | `0x2255fc213bf39d1df2129c9e068b363f2b11a27b70b4b2c48df8ea4275f1c92` | declared |
+| `HybridShakeVerifierPfSmall` | verifier, optimized (`shake-pf-small-v1`) | `0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1` | declared ([0x18feecd7…](https://sepolia.voyager.online/tx/0x18feecd71b354a738babe560822d471232d6ec6ff5b5097877bc458b3c0cd62)) |
+| `HybridShakeAccount` | verifier, **default** (`shake-baseline`) | `0x2255fc213bf39d1df2129c9e068b363f2b11a27b70b4b2c48df8ea4275f1c92` | declared |
 | `HybridPoseidonAccount` | verifier (`poseidon`, other scheme) | `0x7f10b6f2f70e72ef87e97844b5f6f13d384c92afcfed2a1233a03524d359d6f` | declared |
-| `HybridMigratableAccount` | account | `0x4b067679dbb29516dd79fba49ba1f1b2bc3973b33c74881ff56098d19e27a78` | declared |
+| `HybridMigratableAccount` | account | `0x5faf94f20ce4b58b22805b4199b889adb302904301890d3d723bea7b62a9f72` | declared (2026-11-16) |
 | `VerifierSwitchGuard` | guard | `0x44779ad7a4ea11318759272383a06d06fdf1b7c007ba1e5f38a2096e6e26178` | declared ([0x687a8500…](https://sepolia.voyager.online/tx/0x687a8500c3732f619db3a0f8db15ae271a8391282cb52f91b0f3cab69169e23)); instance `0x5093253f…945e` |
 | `HybridShakeVerifierPfCompact`, `HybridShakeVerifierPfRecord` | verifiers | see the manifest | cannot be declared (over the block's L2 gas cap) |
 
-It also lists, under `legacy_account_classes`, three earlier `HybridMigratableAccount` builds
+The default verifier is the unpatched OpenZeppelin `HybridShakeAccount`; the small Provably Fast
+verifier is selected with `PQ_VERIFIER=shake-pf-small-v1` until a review covers its patch.
+
+It also lists, under `legacy_account_classes`, five earlier `HybridMigratableAccount` builds
 that existing accounts still run, with the accounts known to use each:
 
 | Account class | Run by |
 | --- | --- |
+| `0x7efafbfbaf02af30bc17d55366392e129fea252d7597650da45a61d0869f75a` | the 2026-11-02 wallet-coverage run (eleven accounts), the rotation account and the Sepolia validator's two accounts |
+| `0x4b067679dbb29516dd79fba49ba1f1b2bc3973b33c74881ff56098d19e27a78` | the 2026-10-19 wallet-coverage run (eleven accounts); the class this release first pinned |
 | `0x7b6d5ed4cbb6c7a2633dd9139c25ffb76bb608cafbba9e424a277a885432b25` | the public demo account `0x343e3df5…c0db` (the switch and browser evidence below ran on it) |
 | `0x660679aa09bef2ef29e1a2ebe21ee85d87bacde8746430b380425db5dd3c31b` | the README's Argent and Braavos demo accounts |
 | `0xae4154b7e35c9475f4875757bcfa2b19ca88fc2e9bd9fa793e82a91ef5815f` | the README's in-place OpenZeppelin migration, the browser-setup account |
 
 Their sources are earlier commits of this repository, and this commit doesn't rebuild them, so
 they have no artifact hashes. `--chain` checks that each is declared and that each listed account
-still runs it. All three have `set_verifier_class_hash` and `is_valid_signature`, so the guarded
-switch works on them ([`verifier-replacement.md`](../contracts/docs/verifier-replacement.md#deployed-accounts)).
-New migrations use the pinned `HybridMigratableAccount`.
+still runs it. All five have `set_verifier_class_hash` and `is_valid_signature`, so the guarded
+switch works on them ([`verifier-replacement.md`](../contracts/docs/verifier-replacement.md#deployed-accounts));
+from `0x7efafbfb…` on, the account also checks the switch itself. New migrations use the pinned
+`HybridMigratableAccount`.
 
 For each built class it also records the Blake2s compiled class hash (what a declare signs since Starknet
 0.14.1) and the SHA-256 of the Sierra and CASM artifacts. It pins the sources (OpenZeppelin

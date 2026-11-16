@@ -1,6 +1,7 @@
 // The verifier versions this release pins (release/testnet-v1.json). Setup and migration scripts
 // choose their verifier here, never from a state file: PQ_VERIFIER=<id>, default the manifest's
-// default_verifier (shake-pf-small-v1). Unknown ids and unpinned class hashes are refused.
+// default_verifier (shake-baseline; shake-pf-small-v1 is the optimized one). Unknown ids and
+// unpinned class hashes are refused.
 import { readFileSync } from "node:fs";
 import { RELEASE_MANIFEST } from "./config.mjs";
 

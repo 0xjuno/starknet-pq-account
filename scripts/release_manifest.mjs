@@ -13,11 +13,12 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-// starknet.js is installed in signer/, not next to this script.
-const { RpcProvider, hash } = await import(createRequire(resolve(REPO, "signer/package.json")).resolve("starknet"));
+// starknet.js is installed in signer/, not next to this script. import() takes a URL, not a path
+// (a bare Windows path is read as a scheme).
+const { RpcProvider, hash } = await import(pathToFileURL(createRequire(resolve(REPO, "signer/package.json")).resolve("starknet")).href);
 
 const TARGET = resolve(REPO, "contracts/target/dev");
 const PATCHES = resolve(REPO, "vendor/provably-fast/falcon-512");
@@ -108,7 +109,9 @@ function write() {
       "shake-baseline": "HybridShakeAccount",
       poseidon: "HybridPoseidonAccount",
     },
-    default_verifier: "shake-pf-small-v1",
+    // The unpatched OpenZeppelin verifier stays the default until a review covers the small
+    // patch; PQ_VERIFIER=shake-pf-small-v1 selects the optimized one.
+    default_verifier: "shake-baseline",
     guard_instance: old.guard_instance ?? "0x5093253fe6ee74bce57ae826a72bc94ddf02b6fbe20db5512e744a9a304945e",
     legacy_account_classes: old.legacy_account_classes ?? {},
   };
@@ -142,6 +145,17 @@ function check() {
   console.log(`\nmanifest matches the built artifacts and the pinned patches`);
 }
 
+// Public RPC endpoints rate-limit bursts; a transient failure must not read as a missing class.
+async function retry(fn, tries = 6) {
+  for (let i = 0; ; i++) {
+    try { return await fn(); } catch (e) {
+      const msg = String(e?.message || e);
+      if (i + 1 >= tries || !/429|rate|limit|too many|fetch failed|ECONNRESET|timeout|503|502/i.test(msg)) throw e;
+      await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+    }
+  }
+}
+
 async function chain() {
   const m = JSON.parse(readFileSync(MANIFEST, "utf8"));
   const provider = new RpcProvider({ nodeUrl: RPC });
@@ -149,10 +163,10 @@ async function chain() {
   for (const [name, c] of Object.entries(m.classes)) {
     if (!c.declarable) { console.log(`--   ${name}: not declarable (expected)`); continue; }
     try {
-      await provider.getClassByHash(c.class_hash);
+      await retry(() => provider.getClassByHash(c.class_hash));
       let tx = "";
       if (c.declare_tx) {
-        const t = await provider.getTransactionByHash(c.declare_tx);
+        const t = await retry(() => provider.getTransactionByHash(c.declare_tx));
         if (!same(t.class_hash, c.class_hash)) throw new Error(`declare_tx ${c.declare_tx} declared ${t.class_hash}`);
         if (!same(t.compiled_class_hash, c.compiled_class_hash)) throw new Error(`declare_tx ${c.declare_tx} signed compiled class ${t.compiled_class_hash}`);
         tx = `, declared by ${c.declare_tx.slice(0, 10)}…`;
@@ -168,9 +182,9 @@ async function chain() {
   if (!m.legacy_account_classes) { bad++; console.log("FAIL legacy_account_classes: missing from the manifest"); }
   for (const [h, c] of Object.entries(m.legacy_account_classes ?? {})) {
     try {
-      await provider.getClassByHash(h);
+      await retry(() => provider.getClassByHash(h));
       for (const a of c.accounts) {
-        const runs = await provider.getClassHashAt(a);
+        const runs = await retry(() => provider.getClassHashAt(a));
         if (!same(runs, h)) throw new Error(`${a} now runs ${runs}`);
       }
       console.log(`ok   legacy ${h} is declared; ${c.accounts.length} listed account(s) run it`);
@@ -179,7 +193,7 @@ async function chain() {
       console.log(`FAIL legacy ${h}: ${e.message.split("\n")[0]}`);
     }
   }
-  const guardClass = await provider.getClassHashAt(m.guard_instance).catch((e) => e.message);
+  const guardClass = await retry(() => provider.getClassHashAt(m.guard_instance)).catch((e) => e.message);
   const ok = same(guardClass, m.classes.VerifierSwitchGuard.class_hash);
   if (!ok) bad++;
   console.log(`${ok ? "ok  " : "FAIL"} guard instance ${m.guard_instance} runs ${guardClass}`);

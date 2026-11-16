@@ -7,22 +7,27 @@
 //   4. switch to the Poseidon verifier (another scheme): reverted on-chain, verifier unchanged
 //   5. switch to the SHAKE-256 verifier again: succeeds; a final transfer still goes through
 // Idempotent; resumes from .keys/rotation-sepolia-state.json.   node rotation_sepolia.mjs
+// PQ_ROTATION_RUN=<tag> starts a separate run (own state file and fresh words), e.g. after a new
+// HybridMigratableAccount class: the class is declared from contracts/target/dev if it is not yet.
 import { Account, CallData, RpcProvider, cairo, hash, json, num } from "starknet";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { generateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 import {
-  HybridSigner, KNOWN_VERIFIERS, deriveAccountKeys, hybridSignature, inspectAccount, migrationCalls,
+  HybridSigner, deriveAccountKeys, hybridSignature, inspectAccount, migrationCalls,
   prepareKeys, rotationCalls, rotationHash, verifierSwitchCall,
 } from "./pq_account_kit.mjs";
 import { KEYS, ROOTS, RPC, TARGET } from "./config.mjs";
+import { verifierClass } from "./verifiers.mjs";
 
-const STATE_FILE = `${KEYS}/rotation-sepolia-state.json`;
-const WORDS_FILE = `${KEYS}/rotation-sepolia-mnemonic.txt`;
+const RUN = process.env.PQ_ROTATION_RUN || "";
+const STATE_FILE = `${KEYS}/rotation-sepolia-state${RUN ? `-${RUN}` : ""}.json`;
+const WORDS_FILE = `${KEYS}/rotation-sepolia-mnemonic${RUN ? `-${RUN}` : ""}.txt`;
 const STRK = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 const OZ_CLASS = "0x05b4b537eaa2399e3aa99c4e2e0208ebd6c71bc1467938cd52c798c601e43564";
 const VOYAGER = "https://sepolia.voyager.online";
-const [SHAKE, POSEIDON] = Object.keys(KNOWN_VERIFIERS);
+const SHAKE = verifierClass("shake-baseline");
+const POSEIDON = verifierClass("poseidon");
 
 const provider = new RpcProvider({ nodeUrl: RPC });
 const roots = JSON.parse(readFileSync(ROOTS, "utf8"));

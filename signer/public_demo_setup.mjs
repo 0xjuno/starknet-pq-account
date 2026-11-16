@@ -1,7 +1,7 @@
 // Public demo account for docs/index.html. Its mnemonic is published on purpose so anyone can
 // try the browser signer. TESTNET ONLY: it holds Sepolia STRK with no value and is refilled.
 //   1. the verifier and migratable classes are pinned in release/testnet-v1.json and already
-//      declared: PQ_VERIFIER=<id> picks a SHAKE-256 verifier, default shake-pf-small-v1
+//      declared: PQ_VERIFIER=<id> picks a SHAKE-256 verifier, default shake-baseline
 //      (--print-config prints the choice and sends nothing)
 //   2. new mnemonic -> OZ account, funded, deployed, migrated in place with that verifier
 //   3. one hybrid transfer signed the browser way

@@ -19,9 +19,12 @@ import { HybridSigner, deriveAccountKeys, prepareKeys, switchVerifier, verifierS
 import { ROOTS, TARGET } from "./config.mjs";
 
 const DEVNET = process.env.PQ_DEVNET || "http://127.0.0.1:5050";
-// Migratable classes in use on Sepolia (contracts/docs/verifier-replacement.md, 2026-10-27).
+// Migratable classes in use on Sepolia (contracts/docs/verifier-replacement.md). The first is the
+// class this commit builds; the rest are earlier builds that deployed accounts still run.
 const MIGRATABLE = {
-  "0x4b067679dbb29516dd79fba49ba1f1b2bc3973b33c74881ff56098d19e27a78": "current (2026-10-19)",
+  "0x5faf94f20ce4b58b22805b4199b889adb302904301890d3d723bea7b62a9f72": "current (2026-11-16)",
+  "0x7efafbfbaf02af30bc17d55366392e129fea252d7597650da45a61d0869f75a": "2026-11-02 (rotation and verifier-switch proofs)",
+  "0x4b067679dbb29516dd79fba49ba1f1b2bc3973b33c74881ff56098d19e27a78": "2026-10-19",
   "0x660679aa09bef2ef29e1a2ebe21ee85d87bacde8746430b380425db5dd3c31b": "Argent and Braavos demo accounts",
   "0x7b6d5ed4cbb6c7a2633dd9139c25ffb76bb608cafbba9e424a277a885432b25": "public demo account",
   "0xae4154b7e35c9475f4875757bcfa2b19ca88fc2e9bd9fa793e82a91ef5815f": "in-place OpenZeppelin migration",
