@@ -119,6 +119,7 @@ pub mod HybridMigratableAccount {
     pub const INVALID_FALCON_KEY: felt252 = 'Migratable: invalid falcon key';
     pub const INVALID_VERIFIER: felt252 = 'Migratable: invalid verifier';
     pub const INCOMPATIBLE_VERIFIER: felt252 = 'Migratable: verifier rejects';
+    pub const STATE_CHANGED: felt252 = 'Migratable: state changed';
     pub const NO_ECDSA_KEY: felt252 = 'Migratable: no ecdsa key';
 
     #[storage]
@@ -298,14 +299,22 @@ pub mod HybridMigratableAccount {
 
         /// Points verification at another declared verifier class (e.g. an audited one).
         /// Requires a hybrid-signed transaction (self-call). The new verifier must accept this
-        /// transaction's own signature, or the switch reverts.
+        /// transaction's own signature, or the switch reverts. It runs in this account's storage,
+        /// so the switch also reverts if that call changed the keys or the verifier pointer.
         fn set_verifier_class_hash(ref self: ContractState, verifier_class_hash: ClassHash) {
             self._assert_only_self();
             assert(self._falcon_registered(), NOT_REGISTERED);
             assert(verifier_class_hash.is_non_zero(), INVALID_VERIFIER);
+            let account_key = self.Account_public_key.read();
+            let mirrored_key = self.ecdsa_public_key.read();
+            let falcon_key = self._read_falcon_public_key();
             self.Migratable_verifier_class_hash.write(verifier_class_hash);
             let tx_info = starknet::get_tx_info().unbox();
             assert(self._verify(tx_info.transaction_hash, tx_info.signature), INCOMPATIBLE_VERIFIER);
+            assert(self.Migratable_verifier_class_hash.read() == verifier_class_hash, STATE_CHANGED);
+            assert(self.Account_public_key.read() == account_key, STATE_CHANGED);
+            assert(self.ecdsa_public_key.read() == mirrored_key, STATE_CHANGED);
+            assert(self._read_falcon_public_key() == falcon_key, STATE_CHANGED);
             self.emit(VerifierChanged { verifier_class_hash });
         }
 

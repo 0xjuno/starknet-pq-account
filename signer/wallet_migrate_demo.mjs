@@ -9,13 +9,17 @@
 //     a hybrid-signed transfer succeeds, an ECDSA-only transfer is rejected
 // Idempotent; resumes from .keys/wallet-matrix-state.json.   node wallet_migrate_demo.mjs [name ...]
 // PQ_MATRIX_RUN=<tag> starts a separate run (own state file and fresh words), e.g. after a new
-// HybridMigratableAccount class.
-import { Account, CallData, RpcProvider, Signer, cairo, constants, ec, hash, json, num } from "starknet";
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+// HybridMigratableAccount class. The verifier and the migratable class are pinned in
+// release/testnet-v1.json (verifiers.mjs): PQ_VERIFIER=<id> picks the verifier, default the small
+// Provably Fast verifier; PQ_VERIFIER_CLASS=<hash> also works if that hash is pinned.
+// --print-config prints the choice and sends nothing.
+import { Account, CallData, RpcProvider, Signer, cairo, constants, ec, hash, num } from "starknet";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { generateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 import { HybridSigner, deriveAccountKeys, inspectAccount, migrationCalls, prepareKeys } from "./pq_account_kit.mjs";
-import { KEYS, ROOTS, RPC, TARGET } from "./config.mjs";
+import { KEYS, ROOTS, RPC } from "./config.mjs";
+import { MIGRATABLE_CLASS, selectedVerifier } from "./verifiers.mjs";
 
 const RUN = process.env.PQ_MATRIX_RUN || "";
 const STATE_FILE = `${KEYS}/wallet-matrix-state${RUN ? `-${RUN}` : ""}.json`;
@@ -43,15 +47,31 @@ const WALLETS = {
   "openzeppelin-b": { profile: "pq", cls: "0xe2eb8f5672af4e6a4e8a8f1b44989685e668489b0a25437733756c5a34a1d6", ctor: (pk) => [pk] },
 };
 
-const SHAKE_VERIFIER = JSON.parse(readFileSync(`${KEYS}/browser-state.json`, "utf8")).shakeClass;
+const VERIFIER = selectedVerifier();
+const SHAKE_VERIFIER = VERIFIER.classHash;
 const state = existsSync(STATE_FILE) ? JSON.parse(readFileSync(STATE_FILE, "utf8")) : {};
 const save = () => writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+// A run keeps the classes it started with: resuming it with others would mix them in one record.
+if (state.migratableClass && BigInt(state.migratableClass) !== BigInt(MIGRATABLE_CLASS)) {
+  throw new Error(`${STATE_FILE} was started with migratable class ${state.migratableClass}, not ${MIGRATABLE_CLASS}; start a new run (PQ_MATRIX_RUN)`);
+}
+for (const [name, w] of Object.entries(state)) {
+  const used = w?.before?.verifierClass;
+  if (used && BigInt(used) !== BigInt(SHAKE_VERIFIER)) {
+    throw new Error(`${STATE_FILE} was started with verifier ${used} (${name}), not ${SHAKE_VERIFIER}; set PQ_VERIFIER to match, or start a new run (PQ_MATRIX_RUN)`);
+  }
+}
+if (process.argv.includes("--print-config")) {
+  console.log(`verifier: ${VERIFIER.id} ${SHAKE_VERIFIER}\nmigratable class: ${MIGRATABLE_CLASS}`);
+  process.exit(0);
+}
 const log = (...a) => console.log(...a);
 const fmt = (wei) => (Number(wei) / 1e18).toFixed(6) + " STRK";
 const provider = new RpcProvider({ nodeUrl: RPC });
 const roots = JSON.parse(readFileSync(ROOTS, "utf8"));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-let TIP = 0n; // Sepolia evicts zero-tip transactions; set from recent blocks in main()
+// Sepolia evicts zero-tip transactions from the mempool; set in main() from recent blocks.
+let TIP = 0n;
 
 async function retry(fn, tries = 10) {
   for (let i = 0; ; i++) {
@@ -108,22 +128,6 @@ async function send(acc, calls, l2Max) {
 }
 const errTail = (e) => { const m = e?.message || String(e); return m.slice(Math.max(0, m.length - 300)); };
 
-async function declareMigratable(deployerAcc) {
-  const sierraPath = `${TARGET}/pq_hybrid_HybridMigratableAccount.contract_class.json`;
-  const sierra = json.parse(readFileSync(sierraPath, "utf8"));
-  const casm = json.parse(readFileSync(`${TARGET}/pq_hybrid_HybridMigratableAccount.compiled_contract_class.json`, "utf8"));
-  const classHash = hash.computeContractClassHash(sierra);
-  if (state.migratableClass === classHash) return;
-  const l2Max = BigInt(Math.ceil(4.2e9 * (statSync(sierraPath).size / 2.2e6) * 2.5));
-  log(`declaring HybridMigratableAccount ${classHash} (l2 max ${l2Max})...`);
-  const nonce = await retry(() => provider.getNonceForAddress(deployerAcc.address, "latest"));
-  const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: TIP, resourceBounds: await bounds(l2Max, [5n, 4n], 200000n) });
-  if (d.transaction_hash) {
-    const rc = await retry(() => provider.waitForTransaction(d.transaction_hash));
-    log("declare fee:", rc.actual_fee ? fmt(BigInt(rc.actual_fee.amount)) : "n/a");
-  }
-  state.migratableClass = d.class_hash; state.declareTx = d.transaction_hash || null; save();
-}
 
 async function deploy(name, w, k, deployerAcc) {
   const braavos = !!w.impl;
@@ -160,10 +164,14 @@ async function run(name, deployerAcc) {
     s.inspectBefore = info; save();
     log(`  inspect: ${info.kind} ${info.version || ""} migratable=${info.migratable} needs=[${info.needs}] ${info.reason}`);
     if (!info.migratable) return;
-    // Fee bound for the migration (MIGRATION_L2_MAX at 1.5x the current price) must fit the balance.
+    // The migration's fee bound (MIGRATION_L2_MAX at the price bounds() sets) must fit the balance
+    // whatever the L2 gas price is today, or validation fails with "exceed balance": top the
+    // account up to that bound plus 1 STRK, not to a fixed amount.
+    const b = await bounds(MIGRATION_L2_MAX);
+    const need = b.l2_gas.max_amount * b.l2_gas.max_price_per_unit + b.l1_data_gas.max_amount * b.l1_data_gas.max_price_per_unit + 10n ** 18n;
     const balance = await strkBalance(s.address);
-    if (balance < 9n * 10n ** 18n) await send(deployerAcc, transferCall(s.address, 9n * 10n ** 18n - balance), 3000000n);
-    s.before = { class: info.classHash, balance: (await strkBalance(s.address)).toString() }; save();
+    if (balance < need) await send(deployerAcc, transferCall(s.address, need - balance), 3000000n);
+    s.before = { class: info.classHash, balance: (await strkBalance(s.address)).toString(), verifierClass: SHAKE_VERIFIER }; save();
     const calls = migrationCalls(info, k, { migratableClass: state.migratableClass, verifierClass: SHAKE_VERIFIER });
     try {
       s.migration = await send(new Account({ provider, address: s.address, signer: k.ecdsaPrivateKey }), calls, MIGRATION_L2_MAX); save();
@@ -206,8 +214,9 @@ async function main() {
   const deployerAcc = new Account({ provider, address: deployerAddress, signer: deployer.privateKey });
   TIP = (await retry(() => provider.getEstimateTip("latest", { maxBlocks: 5 }))).recommendedTip;
   log("deployer:", deployerAddress, fmt(await strkBalance(deployerAddress)), " verifier (SHAKE):", SHAKE_VERIFIER, " tip:", TIP);
-  await declareMigratable(deployerAcc);
-  log("migratable class:", state.migratableClass);
+  // Pinned and declared on Sepolia (scripts/release_manifest.mjs --chain).
+  state.migratableClass = MIGRATABLE_CLASS; save();
+  log("migratable class:", MIGRATABLE_CLASS, " verifier:", VERIFIER.id);
   const names = process.argv.length > 2 ? process.argv.slice(2) : Object.keys(WALLETS);
   for (const name of names) { await run(name, deployerAcc); await sleep(2000); }
 }

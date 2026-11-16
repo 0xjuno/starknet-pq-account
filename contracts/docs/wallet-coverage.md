@@ -13,28 +13,35 @@ with that wallet's derivation (`argentx` for Argent, `braavos` for Braavos, `pq`
 OpenZeppelin and for the Xverse and OKX classes, whose wallets do not publish their derivation),
 deploys a real account of that class, and migrates it with
 `pq_account_kit.mjs` only (`inspectAccount`, then `migrationCalls`). Migratable class:
-`0x7efafbfbaf02af30bc17d55366392e129fea252d7597650da45a61d0869f75a` (declared 2026-11-02, with the
-checks on key rotation and verifier switches; migration paths unchanged). Runs on earlier classes
-(`0x4b067679…`, `0x143276dc…`) are in the git history of this file.
+`0x5faf94f20ce4b58b22805b4199b889adb302904301890d3d723bea7b62a9f72` (declared 2026-11-16; adds
+the state check on verifier switches to the 2026-11-02 class, migration paths unchanged). Runs on
+earlier classes (`0x7efafbfb…`, `0x4b067679…`, `0x143276dc…`) are in the git history of this file.
+Run with `PQ_MATRIX_RUN=v4`; the account is topped up to the migration's fee bound at the day's
+L2 gas price before it migrates.
 
 | Wallet class | Sierra | Migration transaction | L2 gas | Hybrid transfer |
 | --- | --- | --- | --- | --- |
-| Argent 0.3.0 | 1.2.0 | `upgrade` → `execute_after_upgrade` [0x4ec64252…](https://sepolia.voyager.online/tx/0x4ec64252e80e7a20aedf2d081640c02261f8980598a4e8fef1bab4f07ffa8) | 153.5M | [0x62cdc4a6…](https://sepolia.voyager.online/tx/0x62cdc4a667e7ff724039b4329d7680827eb84b79dbdf62eb73677aa0aaf0b05) |
-| Argent 0.3.1 | 1.4.0 | `upgrade` → `execute_after_upgrade` [0x4bfd65cf…](https://sepolia.voyager.online/tx/0x4bfd65cf4a697ff4ae6ecceefa7c274f35cbf5ddcd7fac535d031a67dde42e4) | 153.5M | [0x7caa6d04…](https://sepolia.voyager.online/tx/0x7caa6d0479d47c119a73cf3519f9b055b8a0ab0da5ec5efa2cbf4c86d0a0ffd) |
-| Argent 0.4.0 | 1.5.0 | `upgrade` → `perform_upgrade` [0x7acb1b1d…](https://sepolia.voyager.online/tx/0x7acb1b1d4551df1e8567dc372f0e6aaead7e78b79c1b43f6d09577f81652a04) | 153.5M | [0x27637237…](https://sepolia.voyager.online/tx/0x27637237d6dbce58886a703c4756418b209d0c4b5d1c585513140467ee30794) |
-| Argent 0.5.0 | 1.7.0 | `upgrade` → `perform_upgrade` [0x44be6494…](https://sepolia.voyager.online/tx/0x44be6494aa08210bce48ae436ee117dc320140263c0b8db2aebc72bcebc25e9) | 70.4M | [0x66d26c19…](https://sepolia.voyager.online/tx/0x66d26c1933b08b187d65eb34b50db50ef812d8bac07d5f11f95cabb9660dc84) |
-| Braavos 1.0.0 | 1.4.0 | `[upgrade, migrate]` [0x1c9cb5ce…](https://sepolia.voyager.online/tx/0x1c9cb5cea204f820aff8acd1dfdcf081a09c6478e0dbcf78692759b4872be2a) | 138.0M | [0x2c499879…](https://sepolia.voyager.online/tx/0x2c4998793899d17c0de144f43f491c68029d7d57ea55c9a0c7b947f3aed618e) |
-| Braavos 1.1.0 | 1.6.0 | `[upgrade, migrate]` [0x38b9eab5…](https://sepolia.voyager.online/tx/0x38b9eab57539e0cd6c731957bd4cb2411a4237d7d7cb1921e20781821228429) | 138.0M | [0x5e13f29b…](https://sepolia.voyager.online/tx/0x5e13f29b67a69795998e98bbfa5f628097aa59f9b1456dc77d6acf314d2e30c) |
-| Braavos 1.2.0 | 1.7.0 | `[upgrade, migrate]` [0x1b62ef63…](https://sepolia.voyager.online/tx/0x1b62ef63e2e00ef3d88547d5d6753eeb999c75f58013fab87d7ffdd6d7e97e) | 74.5M | [0x7db82075…](https://sepolia.voyager.online/tx/0x7db82075526e6747bc906126b8e89712bd2e603155143842aac6e8b9b1d3458) |
-| OpenZeppelin `0x05b4b537…` | 1.6.0 | `[upgrade, migrate]` [0x2cdd0998…](https://sepolia.voyager.online/tx/0x2cdd0998bc1ab7e3f2e4d10346f6ac14df73cd2ab1ab15e117cf5629bb04547) | 153.1M | [0x685e885c…](https://sepolia.voyager.online/tx/0x685e885c6d923ca4f0136bc4ae5f1de6721574c401993e7f14828c40fe63e53) |
-| OpenZeppelin `0xe2eb8f56…` | 1.5.0 | `[upgrade, migrate]` [0x4e30ed81…](https://sepolia.voyager.online/tx/0x4e30ed81be52535d9944e5c9bfed31f9fc126b69d8a06409f240e3860c6cb9e) | 137.6M | [0x6c68453d…](https://sepolia.voyager.online/tx/0x6c68453db1cf65c761eef8c3232a29be54f4730eeba1862c45f7bbb3e13596e) |
-| Xverse (`ArgentAccountXverse`, Argent 0.4.0 base) | 1.5.0 | `upgrade` → `perform_upgrade` [0x3ba727f8…](https://sepolia.voyager.online/tx/0x3ba727f8fdb68e781c47e60bf964827f0faff784e337ca6923762603dfcbbd6) | 153.5M | [0x2ed773e7…](https://sepolia.voyager.online/tx/0x2ed773e7876ed574beb500c0bdb0d559061263902b7719c0d9a84acad90ccde) |
-| OKX (`OkxAccount`, Argent 0.3.0 base) | 1.2.0 | `upgrade` → `execute_after_upgrade` [0x2003c6cc…](https://sepolia.voyager.online/tx/0x2003c6cc07c1ab6478ca52910c102dd6d468251d1caea764e05b3a1d21491a1) | 138.0M | [0x4f4e1ef6…](https://sepolia.voyager.online/tx/0x4f4e1ef66a4b51a46a77da2029e2c5573cb0d6170f792b33768cad481b604a7) |
+| Argent 0.3.0 | 1.2.0 | `upgrade` → `execute_after_upgrade` [0x3cce0e29…](https://sepolia.voyager.online/tx/0x3cce0e29839a1e454d509d465bd0d6f9d47a17b5c1a39ca2e8696e6d0086f6) | 153.5M | [0x19025517…](https://sepolia.voyager.online/tx/0x19025517dba7c95f9c7f621179ee3120b643a8a155d4dbc969ce70ddf62033) |
+| Argent 0.3.1 | 1.4.0 | `upgrade` → `execute_after_upgrade` [0x6fd63896…](https://sepolia.voyager.online/tx/0x6fd63896588dd1cc6c58087cc84e36be03cbe5782abc99c9cb3e57527a47a34) | 138.0M | [0x38d6ad11…](https://sepolia.voyager.online/tx/0x38d6ad11abc78f441535921ed4a90872c6b1a2bbb5bb2a47663ca4de42e9877) |
+| Argent 0.4.0 | 1.5.0 | `upgrade` → `perform_upgrade` [0x28e3c69d…](https://sepolia.voyager.online/tx/0x28e3c69d35fc917f2637e0e2a7d6a3477415883a834d29945a604aa55e483c3) | 153.5M | [0x1e24afcb…](https://sepolia.voyager.online/tx/0x1e24afcb7c32eb19ea1b244f23568e4bb8a6f5ed7e433ccd532b91f1b373e37) |
+| Argent 0.5.0 | 1.7.0 | `upgrade` → `perform_upgrade` [0x4ae01ad7…](https://sepolia.voyager.online/tx/0x4ae01ad73c9e52fcfe737d9ac986ac040b63f6bc7023cf3606cd61118968fbe) | 74.7M | [0x494ea786…](https://sepolia.voyager.online/tx/0x494ea7867e30f71ed5277d4f354abac8b8c367005fcd769b24286f88fefe01b) |
+| Braavos 1.0.0 | 1.4.0 | `[upgrade, migrate]` [0x4dcc2f43…](https://sepolia.voyager.online/tx/0x4dcc2f436a9f8da23fc7f9f2701e096d1639a16b77f70133b03651fac35b6c9) | 138.0M | [0x46a30f82…](https://sepolia.voyager.online/tx/0x46a30f822e555d696d8f375feb0111f71c6cdf02eb1aa4c0f2b39dcdab5d952) |
+| Braavos 1.1.0 | 1.6.0 | `[upgrade, migrate]` [0x69045b61…](https://sepolia.voyager.online/tx/0x69045b610854d3abc81309b70a57bdd822818e83123ee3a3c8c12b64b893744) | 153.5M | [0x436ed720…](https://sepolia.voyager.online/tx/0x436ed72019060db4a35dce4296b35a06d08eae3fd3a942e21c93b2ef0d2966d) |
+| Braavos 1.2.0 | 1.7.0 | `[upgrade, migrate]` [0x73635a00…](https://sepolia.voyager.online/tx/0x73635a00e34649854f67081c3e7136b41748081de4abe027ce571682946bc17) | 70.1M | [0x2a4194f8…](https://sepolia.voyager.online/tx/0x2a4194f88f7a85fcffffd89d6cc1806e307be6f3cd211a0b48932630b92e08f) |
+| OpenZeppelin `0x05b4b537…` | 1.6.0 | `[upgrade, migrate]` [0xc4bce24b…](https://sepolia.voyager.online/tx/0xc4bce24b97b6e2879840b429016ce50b1ebdd3ceeeccc7dd1c03ca2fffddb6) | 137.6M | [0x3df6441d…](https://sepolia.voyager.online/tx/0x3df6441dabe824e2b1188302a68f656314a4b608d8ddc0ef7704e325777add6) |
+| OpenZeppelin `0xe2eb8f56…` | 1.5.0 | `[upgrade, migrate]` [0xf12464af…](https://sepolia.voyager.online/tx/0xf12464af1e2139192a58c61bf0c4832dd745b9e664f9bbdb862c92dc1c3071) | 137.6M | [0x2d465c68…](https://sepolia.voyager.online/tx/0x2d465c68d2292957c163a5f4e96e087b958aaab375704cc33a07dd9f47247) |
+| Xverse (`ArgentAccountXverse`, Argent 0.4.0 base) | 1.5.0 | `upgrade` → `perform_upgrade` [0x5b557433…](https://sepolia.voyager.online/tx/0x5b5574332113fc27b8676341b43c429ffd394b638d9d071d75fb9504c882007) | 138.0M | [0x751438c7…](https://sepolia.voyager.online/tx/0x751438c73a5c163d97a4b176b8d8c19007ea3f7d7c327e2ce830197995a9588) |
+| OKX (`OkxAccount`, Argent 0.3.0 base) | 1.2.0 | `upgrade` → `execute_after_upgrade` [0x46dbc7a2…](https://sepolia.voyager.online/tx/0x46dbc7a2532605ecc4a50b2e31f4269dcfd1383e8589135fd1b67b31e8ff2d1) | 153.5M | [0x5a0ceb12…](https://sepolia.voyager.online/tx/0x5a0ceb12939016ac01c0595ec15be3abae5311fa007c22aa204fea2edfb170f) |
 
 For all eleven accounts: the classical and Falcon keys stored after migration equal the keys derived
 from its words, the balance dropped by exactly the migration fee, the hybrid-signed transfer
 succeeded, and an ECDSA-only transfer was rejected in `__validate__`. Sierra versions are read
 from the first three felts of each class's `sierra_program`.
+
+These runs use the baseline `HybridShakeAccount` verifier. Argent 0.5.0, Argent 0.3.1 and Braavos
+1.2.0, one per callback path, were also migrated with the small Provably Fast verifier, with the
+same checks ([`bench/pf04`](../../bench/pf04/README.md#sepolia-receipts),
+[`bench/pf06`](../../bench/pf06/README.md)).
 
 ### Gas
 

@@ -5,12 +5,12 @@
 use pqbench_falcon_512::Falcon512ShakeVerifier;
 use crate::hybrid::verify_hybrid;
 
-const MSG: felt252 = 0x5577781149432b2ad538c0ec06083777090ac3b49bef0334710acc199fe18d;
-const ECDSA_PK: felt252 = 0x25609cc6ef67fc0d3333a19963adb26aa50cf72f476fca59efc1df516e2c73a;
-const ECDSA_R: felt252 = 0x586ade2345240172033373f01c87f73a4326fd7cde6244b8e64bf000c8e5a42;
-const ECDSA_S: felt252 = 0xe71cfef0e3820e1e5030d23a5146cc83d4d0b8e57bb0e998581b5d4c13602f;
+pub const MSG: felt252 = 0x5577781149432b2ad538c0ec06083777090ac3b49bef0334710acc199fe18d;
+pub const ECDSA_PK: felt252 = 0x25609cc6ef67fc0d3333a19963adb26aa50cf72f476fca59efc1df516e2c73a;
+pub const ECDSA_R: felt252 = 0x586ade2345240172033373f01c87f73a4326fd7cde6244b8e64bf000c8e5a42;
+pub const ECDSA_S: felt252 = 0xe71cfef0e3820e1e5030d23a5146cc83d4d0b8e57bb0e998581b5d4c13602f;
 
-fn falcon_pk() -> Array<felt252> {
+pub fn falcon_pk() -> Array<felt252> {
     array![
         0x16c689faf9a9bfb0e2236f68c1518f01f6af30b59aa2f3575d10dfcd08f21c,
         0x3f590a9242bb98852f3e226f85371e600fdfc9b498d053279097c34dc2b63c0,
@@ -44,7 +44,7 @@ fn falcon_pk() -> Array<felt252> {
     ]
 }
 
-fn falcon_sig() -> Array<felt252> {
+pub fn falcon_sig() -> Array<felt252> {
     array![
         0x4c960b3d8abfac2f2879b7170c40f7204bbc13d4f3bb67703f2c521e18911d0,
         0x4c3df0f09c50b88a7a36fa099c0432d04b2704a743a51e21983fde5aad27f27,

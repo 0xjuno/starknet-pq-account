@@ -14,8 +14,9 @@ import { Account, CallData, RpcProvider, cairo, hash, json, num } from "starknet
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { generateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
-import { HybridSigner, KNOWN_VERIFIERS, deriveAccountKeys, inspectAccount, migrationCalls, prepareKeys } from "./pq_account_kit.mjs";
+import { HybridSigner, deriveAccountKeys, inspectAccount, migrationCalls, prepareKeys } from "./pq_account_kit.mjs";
 import { KEYS, ROOTS, RPC, TARGET } from "./config.mjs";
+import { verifierClass } from "./verifiers.mjs";
 
 const STATE_FILE = `${KEYS}/validator-sepolia-state.json`;
 const WORDS_FILE = `${KEYS}/validator-sepolia-mnemonic.txt`;
@@ -27,7 +28,7 @@ const ATTESTATION = "0x03f32e152b9637c31bfcf73e434f78591067a01ba070505ff6ee19564
 const STAKE_AMOUNT = 2n * 10n ** 18n;
 const MIN_ATTESTATION_WINDOW = 11n; // attestation.cairo: a block hash is readable 10 blocks later
 const VOYAGER = "https://sepolia.voyager.online";
-const [SHAKE] = Object.keys(KNOWN_VERIFIERS);
+const SHAKE = verifierClass("shake-baseline");
 
 const provider = new RpcProvider({ nodeUrl: RPC });
 const roots = JSON.parse(readFileSync(ROOTS, "utf8"));

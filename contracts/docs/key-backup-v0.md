@@ -78,6 +78,14 @@ that independent implementations produce the same key.
   both on-chain public keys, and a transfer signed with them succeeded:
   `0x3ba4e17369011649b2ec02b97df634dfd7cd417630853300fa94b2f80484c57`
 
+## Sepolia evidence: public demo words (2026-10-27)
+
+`signer/backup_fixtures_check.mjs` (read-only) derives profile v0.1 keys from the public demo
+words in the README and checks them against the public demo account
+`0x343e3df576edca452f2cc6ac5247fc38a3641912f545e25468e3b7e7de1c0db`: same address, same stored ECDSA
+and Falcon keys, after its switch to the small verifier as before. The noble (v0.1) and falcon.py
+(v0) fixtures verify on every verifier class, small included (`contracts/src/tests_pf.cairo`).
+
 ## Sepolia evidence: wallet accounts (2026-10-17)
 
 `signer/wallet_migrate_demo.mjs` creates words for each wallet, deploys a real account from

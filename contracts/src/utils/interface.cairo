@@ -20,6 +20,13 @@ pub trait IHybridAccount<TState> {
     fn supports_interface(self: @TState, interface_id: felt252) -> bool;
 }
 
+/// The one entrypoint `HybridMigratableAccount` library-calls on its verifier class. Same
+/// selector and calldata as `IHybridAccount::is_valid_signature`.
+#[starknet::interface]
+pub trait IHybridVerifier<TState> {
+    fn is_valid_signature(self: @TState, hash: felt252, signature: Array<felt252>) -> felt252;
+}
+
 /// Deploy-account validation for the hybrid key layout.
 #[starknet::interface]
 pub trait IHybridDeployable<TState> {

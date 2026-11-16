@@ -1,23 +1,30 @@
 // Prepares the browser-wallet demo on Sepolia. TESTNET ONLY.
-//   1. declare HybridShakeAccount (round-three Falcon-512 with SHAKE-256 hash-to-point) as the verifier class
+//   1. the verifier and migratable classes are pinned in release/testnet-v1.json and already
+//      declared: PQ_VERIFIER=<id> picks a SHAKE-256 verifier, default shake-baseline
+//      (--print-config prints the choice and sends nothing)
 //   2. new mnemonic -> keys (pq_keys.mjs, profile v0.1); OZ account funded, deployed, migrated in
-//      place with the SHAKE verifier and the noble-derived Falcon key
+//      place with that verifier and the noble-derived Falcon key
 //   3. one hybrid transfer signed exactly the way the browser page signs (noble + adapter)
-//   4. writes the page config (public data only) to site/browser-wallet.config.json
-import { Account, CallData, RpcProvider, Signer, cairo, ec, hash, json, num } from "starknet";
+//   4. writes the page config (public data only) to signer/browser-wallet.config.json
+import { Account, CallData, RpcProvider, Signer, cairo, ec, hash, num } from "starknet";
 import { generateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { deriveAccountKeys } from "./pq_keys.mjs";
 import { makeNtt, publicKeyFelts, signatureFelts, signTxHash } from "./falcon_adapter.mjs";
-import { KEYS, PAGE_CONFIG, ROOTS, RPC, TARGET } from "./config.mjs";
+import { KEYS, PAGE_CONFIG, ROOTS, RPC } from "./config.mjs";
 import { registrationHash } from "./pq_account_kit.mjs";
+import { MIGRATABLE_CLASS, selectedVerifier } from "./verifiers.mjs";
 
 const STATE_FILE = `${KEYS}/browser-state.json`;
 const MNEMONIC_FILE = `${KEYS}/browser-mnemonic.txt`;
 const STRK = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 const OZ_ACCOUNT_CLASS = "0x05b4b537eaa2399e3aa99c4e2e0208ebd6c71bc1467938cd52c798c601e43564";
-const MIGRATABLE_CLASS = JSON.parse(readFileSync(`${KEYS}/migrate-state.json`, "utf8")).migratableClass;
+const VERIFIER = selectedVerifier();
+if (process.argv.includes("--print-config")) {
+  console.log(`verifier: ${VERIFIER.id} ${VERIFIER.classHash}\nmigratable class: ${MIGRATABLE_CLASS}`);
+  process.exit(0);
+}
 const VOYAGER = "https://sepolia.voyager.online";
 const ntt = makeNtt(JSON.parse(readFileSync(ROOTS, "utf8")));
 
@@ -63,25 +70,7 @@ async function main() {
   const balance = await strkBalance(deployerAddress);
   log("deployer:", fmt(balance));
 
-  // 1. SHAKE verifier class
-  if (!state.shakeClass) {
-    const b = await provider.getBlockWithTxHashes("latest");
-    const l2Max = 4700000000n;
-    const maxFee = l2Max * ((BigInt(b.l2_gas_price.price_in_fri) * 5n) / 4n);
-    log("declare HybridShakeAccount: max fee", fmt(maxFee));
-    if (balance < maxFee + 5n * 10n ** 18n) { log("NEED FUNDS: top up the deployer from https://faucet.starknet.io and rerun."); return; }
-    const sierra = json.parse(readFileSync(`${TARGET}/pq_hybrid_HybridShakeAccount.contract_class.json`, "utf8"));
-    const casm = json.parse(readFileSync(`${TARGET}/pq_hybrid_HybridShakeAccount.compiled_contract_class.json`, "utf8"));
-    const nonce = await provider.getNonceForAddress(deployerAddress, "latest");
-    const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: TIP, resourceBounds: await bounds(l2Max, [5n, 4n], 200000n) });
-    if (d.transaction_hash) {
-      const rc = await provider.waitForTransaction(d.transaction_hash);
-      log("declare fee:", rc.actual_fee ? fmt(BigInt(rc.actual_fee.amount)) : "n/a");
-      state.shakeDeclareTx = d.transaction_hash;
-    }
-    state.shakeClass = d.class_hash; save();
-    log("SHAKE verifier class:", d.class_hash);
-  }
+  log("verifier:", VERIFIER.id, VERIFIER.classHash, " migratable class:", MIGRATABLE_CLASS);
 
   // 2. keys, account, in-place migration
   if (!existsSync(MNEMONIC_FILE)) writeFileSync(MNEMONIC_FILE, generateMnemonic(wordlist, 256) + "\n");
@@ -108,11 +97,12 @@ async function main() {
     const proof = await new BrowserHybridSigner(keys).signRaw(registrationHash(keys.ecdsaPublicKey, falconFelts));
     const m = await oz.execute([
       { contractAddress: address, entrypoint: "upgrade", calldata: [MIGRATABLE_CLASS] },
-      { contractAddress: address, entrypoint: "migrate", calldata: [keys.ecdsaPublicKey, num.toHex(falconFelts.length), ...falconFelts, state.shakeClass, num.toHex(proof.length), ...proof] },
+      { contractAddress: address, entrypoint: "migrate", calldata: [keys.ecdsaPublicKey, num.toHex(falconFelts.length), ...falconFelts, VERIFIER.classHash, num.toHex(proof.length), ...proof] },
     ], { nonce, tip: TIP, resourceBounds: await bounds(250000000n) });
     await provider.waitForTransaction(m.transaction_hash);
     state.migrationTx = m.transaction_hash; save();
-    log("migrated (SHAKE verifier):", `${VOYAGER}/tx/${m.transaction_hash}`);
+    state.verifierClass = VERIFIER.classHash; save();
+    log(`migrated (${VERIFIER.id}):`, `${VOYAGER}/tx/${m.transaction_hash}`);
   }
   const onchain = await provider.callContract({ contractAddress: address, entrypoint: "get_falcon_public_key", calldata: [] }, "latest");
   log("on-chain Falcon key = noble-derived key:", JSON.stringify(onchain.slice(1).map((x) => num.toHex(x))) === JSON.stringify(falconFelts));
@@ -128,9 +118,10 @@ async function main() {
     log("transfer signed with noble Falcon:", `${VOYAGER}/tx/${x.transaction_hash}`, rc.execution_status || "", rc.actual_fee ? fmt(BigInt(rc.actual_fee.amount)) : "");
   }
 
-  // 4. page config: public data only
-  writeFileSync(PAGE_CONFIG, JSON.stringify({ rpc: RPC, account: address, strk: STRK, recipient: deployerAddress, voyager: VOYAGER }, null, 2));
-  log("page config written");
+  // 4. page config: public data only. The page finds the account from the words, and the
+  // verifier labels come from the manifest at build time.
+  writeFileSync(PAGE_CONFIG, JSON.stringify({ rpc: RPC, strk: STRK, recipient: deployerAddress, voyager: VOYAGER }, null, 2) + "\n");
+  log("page config written; rebuild the page with: node scripts/build_page.mjs");
 }
 
 main().catch((e) => { console.error("ERROR:", e?.message || e); let c = e?.cause; while (c) { console.error("  cause:", c.message || c); c = c.cause; } process.exit(1); });

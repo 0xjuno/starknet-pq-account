@@ -1,0 +1,57 @@
+devnet http://127.0.0.1:5050, guard 0x333434d54bf4a64bd3eaf0a71e6bf8c9a52c74cf076697e890b7f113240d2d3, candidate HybridShakeVerifierPfSmall 0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1
+
+0x4b067679dbb29516dd79fba49ba1f1b2bc3973b33c74881ff56098d19e27a78 (current (2026-10-19)): account 0x96da445a1c8a88d9db1765c9d5df09c800c77ac3f5d8bf6ffff656e74dc82f
+ok   0x4b067679 hybrid transfer validated by baseline
+ok   0x4b067679 default (unsigned) estimate of a compatible switch fails
+ok   0x4b067679 guarded switch to candidate succeeds
+ok   0x4b067679 hybrid transfer validated by candidate
+ok   0x4b067679 kit refuses the Poseidon verifier after simulating
+ok   0x4b067679 Poseidon verifier sent anyway: reverted, pointer and keys unchanged
+ok   0x4b067679 control: that signature validates with its own calls
+ok   0x4b067679 signature lifted from another switch is rejected in validation
+ok   0x4b067679 ECDSA-only switch is rejected in validation
+ok   0x4b067679 outsider calling the setter is refused
+ok   0x4b067679 guarded switch back to baseline succeeds
+
+0x660679aa09bef2ef29e1a2ebe21ee85d87bacde8746430b380425db5dd3c31b (Argent and Braavos demo accounts): account 0x364035c8dcd51ba246cf94bfd4c21e4e75adeb3eb2d2c00c397b2f669135322
+ok   0x660679aa hybrid transfer validated by baseline
+ok   0x660679aa default (unsigned) estimate of a compatible switch fails
+ok   0x660679aa guarded switch to candidate succeeds
+ok   0x660679aa hybrid transfer validated by candidate
+ok   0x660679aa kit refuses the Poseidon verifier after simulating
+ok   0x660679aa Poseidon verifier sent anyway: reverted, pointer and keys unchanged
+ok   0x660679aa control: that signature validates with its own calls
+ok   0x660679aa signature lifted from another switch is rejected in validation
+ok   0x660679aa ECDSA-only switch is rejected in validation
+ok   0x660679aa outsider calling the setter is refused
+ok   0x660679aa guarded switch back to baseline succeeds
+
+0x7b6d5ed4cbb6c7a2633dd9139c25ffb76bb608cafbba9e424a277a885432b25 (public demo account): account 0x55b0072d24ec74e36cf1bf6da7317e39b0a276f0b4219db6d1c17fcd7a5d699
+ok   0x7b6d5ed4 hybrid transfer validated by baseline
+ok   0x7b6d5ed4 default (unsigned) estimate of a compatible switch fails
+ok   0x7b6d5ed4 guarded switch to candidate succeeds
+ok   0x7b6d5ed4 hybrid transfer validated by candidate
+ok   0x7b6d5ed4 kit refuses the Poseidon verifier after simulating
+ok   0x7b6d5ed4 Poseidon verifier sent anyway: reverted, pointer and keys unchanged
+ok   0x7b6d5ed4 control: that signature validates with its own calls
+ok   0x7b6d5ed4 signature lifted from another switch is rejected in validation
+ok   0x7b6d5ed4 ECDSA-only switch is rejected in validation
+ok   0x7b6d5ed4 outsider calling the setter is refused
+ok   0x7b6d5ed4 guarded switch back to baseline succeeds
+
+0xae4154b7e35c9475f4875757bcfa2b19ca88fc2e9bd9fa793e82a91ef5815f (in-place OpenZeppelin migration): account 0x2c7e1146af1cac19c8ec6defa836886a6a62e04c680fb48010a23be4f363e64
+ok   0xae4154b7 hybrid transfer validated by baseline
+ok   0xae4154b7 default (unsigned) estimate of a compatible switch fails
+ok   0xae4154b7 guarded switch to candidate succeeds
+ok   0xae4154b7 hybrid transfer validated by candidate
+ok   0xae4154b7 kit refuses the Poseidon verifier after simulating
+ok   0xae4154b7 Poseidon verifier sent anyway: reverted, pointer and keys unchanged
+ok   0xae4154b7 control: that signature validates with its own calls
+ok   0xae4154b7 signature lifted from another switch is rejected in validation
+ok   0xae4154b7 ECDSA-only switch is rejected in validation
+ok   0xae4154b7 outsider calling the setter is refused
+ok   0xae4154b7 guarded switch back to baseline succeeds
+
+ok   guard the guard refuses a caller other than the account
+
+45/45 checks passed

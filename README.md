@@ -44,6 +44,9 @@ in-place upgrade, the hybrid signature check, key backup and recovery, and brows
 | `HybridMigratableAccount` | Thin account class for in-place migration of an existing account, and library-calls a declared verifier class. Argent accounts migrate in one call through Argent's own `upgrade(class_hash, data)` callbacks (`perform_upgrade` from 0.4, `execute_after_upgrade` in 0.3.x); Braavos and OpenZeppelin accounts use `[upgrade, migrate]` in one transaction. Every path requires a hybrid signature by both new keys, so a wrong key reverts the migration instead of locking the account. The verifier, the Falcon key and the ECDSA key can each be replaced later by a hybrid-signed self-call, with the same kind of check (see Security notes). |
 | Wallet integration kit | [`signer/pq_account_kit.mjs`](signer/pq_account_kit.mjs): `inspectAccount` tells which wallet an address is and whether it can move today (Argent owners and guardians, Braavos hardware signers and multisig); `migrationCalls` builds the transaction for that wallet; `HybridSigner` signs afterwards with starknet.js; `rotationCalls` and `verifierSwitchCall` build later key and verifier changes. Only verifier classes in `KNOWN_VERIFIERS` (or the caller's own `allowedVerifiers`) are accepted. |
 | `HybridPoseidonAccount`, `HybridShakeAccount` | Full hybrid accounts, also used as verifier classes: a transaction passes only if BOTH a STARK-curve ECDSA signature and a Falcon-512 signature verify over the same hash. |
+| `HybridShakeVerifierPfSmall` | The optimized verifier class of release `testnet-v1` (`PQ_VERIFIER=shake-pf-small-v1`): the same SHAKE-256 Falcon-512 check with the Provably Fast `fj_dee1326c` patch from the StarkWare and Starknet Foundation Falcon challenge, about 45% less L2 gas per transfer than `HybridShakeAccount` (29.6M against 53.9M). Chosen because it is the cheapest variant that fits in a Sepolia block when declared ([`bench/pf04`](bench/pf04/README.md)). The unpatched `HybridShakeAccount` stays the default until a review covers the patch. |
+| `VerifierSwitchGuard` | Lets a migrated account change its verifier without locking itself: the switch reverts unless the new verifier accepts the switch transaction's own signature (`switchVerifier` in the kit, [`bench/pf06`](bench/pf06/README.md)). |
+| Release manifest | [`release/testnet-v1.json`](release/testnet-v1.json) pins every deployed class to its artifacts, sources and toolchain; `scripts/release_manifest.mjs --check` (offline) and `--chain` (Sepolia, read-only) verify it. See [`release/README.md`](release/README.md). |
 | Key backup profile | One BIP39 mnemonic restores both keys. For an Argent X / Ready account, the classical key follows Argent's own derivation (checked against argent-x test vectors), so the words the user already has restore the current key and the new Falcon key. See [`contracts/docs/key-backup-v0.md`](contracts/docs/key-backup-v0.md). |
 | Browser signer | Falcon-512 signing in the browser with [@noble/post-quantum](https://github.com/paulmillr/noble-post-quantum) (pure JS), converted by `signer/falcon_adapter.mjs` into the layout of the standard SHAKE-256 on-chain verifier. Demo page: [`docs/index.html`](docs/index.html). |
 | Passkey lock | After one restore from the words, the page can lock the 64-byte seed with a passkey: AES-GCM under a key derived (HKDF-SHA256) from the passkey's WebAuthn PRF output, stored in that browser only. Later visits unlock with Face ID, fingerprint, Windows Hello or a security key; the words stay the backup. |
@@ -137,21 +140,33 @@ Known risks, to be covered by a review before any mainnet use:
 
 ## Cost on mainnet
 
-Gas measured on Sepolia, priced with the latest Starknet mainnet block on 2026-10-16
-(L2 gas price 11.34 x 10^9 fri, STRK at $0.0775):
+L2 gas from Sepolia receipts (full transactions, validation included), priced with Starknet
+mainnet block 17043179 (2026-10-27 22:00 UTC: L2 gas 18.88 x 10^9 fri, L1 data gas 44.0 x 10^9
+fri; STRK at $0.0465, CoinGecko). Fees are what the same transaction would cost at those prices.
 
-| Transfer from | L2 gas | Fee |
-| --- | --- | --- |
-| OpenZeppelin ECDSA account (baseline) | 1.85M | 0.021 STRK, about $0.002 |
-| Migrated hybrid account, Poseidon Falcon verifier | 15.8M | 0.18 STRK, about $0.014 |
-| Migrated hybrid account, standard SHAKE-256 verifier (browser path) | 53.9M | 0.61 STRK, about $0.047 |
+| Transfer from | L2 gas | Fee on mainnet |
+| --- | ---: | --- |
+| OpenZeppelin ECDSA account (baseline) | 1.45M | 0.027 STRK, about $0.001 |
+| Migrated hybrid account, Poseidon Falcon verifier | 15.8M | 0.30 STRK, about $0.014 |
+| Migrated hybrid account, OpenZeppelin SHAKE-256 verifier | 53.9M | 1.02 STRK, about $0.047 |
+| Same account and page, Provably Fast small verifier (`PQ_VERIFIER=shake-pf-small-v1`) | 29.5M | 0.56 STRK, about $0.026 |
 
-The migration itself is a one-time transaction, including the key-possession proof checked by
-the SHAKE-256 verifier. From wallet classes compiled with Sierra 1.7.0 (Argent 0.5.0, Braavos
-1.2.0) it used 70 to 75M L2 gas, about 0.8 STRK or $0.06 at the same prices; from older classes
-138 to 153M, about 1.74 STRK or $0.13. See [`contracts/docs/wallet-coverage.md`](contracts/docs/wallet-coverage.md).
+The two SHAKE-256 rows are the public demo account sending from the browser page before and after
+its guarded switch ([`release/testnet-v1-evidence.json`](release/testnet-v1-evidence.json)).
+Falcon verification alone, measured with snforge, is in [`bench/pf04`](bench/pf04/README.md).
 
-Reproduce with `node signer/mainnet_cost.mjs`.
+One-time costs:
+
+| Transaction | L2 gas | Fee on mainnet | Source |
+| --- | ---: | --- | --- |
+| Migration from Argent 0.5.0 / Braavos 1.2.0 (Sierra 1.7.0 classes), small verifier | 48.5–50.3M | about 0.95 STRK, $0.044 | `bench/pf04/sepolia.json`, clean-checkout run |
+| Same, OpenZeppelin SHAKE-256 verifier | 70–75M | about 1.41 STRK, $0.066 | `bench/pf04/sepolia.json` |
+| Migration from Argent 0.3.1, small verifier | 83.5M | about 1.6 STRK | `bench/pf04/sepolia.json` |
+| Guarded verifier switch, either direction | 81–87M | about 1.64 STRK, $0.076 | `bench/pf06`, public demo switch |
+| Declare `HybridShakeVerifierPfSmall` (once per network) | 5.44 x 10^9 | about 102.7 STRK, $4.77 (103.5 STRK paid on Sepolia) | `bench/pf04/sepolia.json` |
+
+A switch to small pays for itself after about four transfers. Reproduce with
+`node signer/mainnet_cost.mjs` (read-only).
 
 ## Results on Starknet Sepolia
 
@@ -168,11 +183,15 @@ Reproduce with `node signer/mainnet_cost.mjs`.
 | Hybrid-signed transfer from the migrated Argent account | [0x15cae4b1…](https://sepolia.voyager.online/tx/0x15cae4b1c075e0769bb0480f4c8bbe1fc3cd46f459ae304ab80db1cadf57a91) |
 | Braavos account migrated (`[upgrade, migrate]`) | [0x5ad0f10b…](https://sepolia.voyager.online/tx/0x5ad0f10bc956238502f45b420e00b82e87ba0fa58374b0767acfbfd6df3e908) |
 | Hybrid-signed transfer from the migrated Braavos account | [0x1d8a44b1…](https://sepolia.voyager.online/tx/0x1d8a44b12bb51a2b5f74f2af21a1b623ed3c94a9d199a363e7137a2fb234c24) |
-| Both keys rotated with proofs (`rotationCalls`, to index 1 of the same words) | [0x10c20a98…](https://sepolia.voyager.online/tx/0x10c20a9882adc2170b8ffd2df218f2532b9202ff52836e829b002c038de3473) |
-| Transfer signed by the rotated keys | [0x3048adc6…](https://sepolia.voyager.online/tx/0x3048adc624f6d2b50c7b671e3cdd4984c545cc3f8543ad228a53162df1e638e) |
-| Rotation to a Falcon key nobody holds: reverted (`invalid key proof`), keys unchanged | [0x4c3fde4d…](https://sepolia.voyager.online/tx/0x4c3fde4db725aaabd1175ef95b76f90af695db3e7f860e6c3c0ae7205276d5c) |
-| Verifier switch to the Poseidon class (another scheme): reverted (`verifier rejects`) | [0x1c200303…](https://sepolia.voyager.online/tx/0x1c200303a3ad90f592b77771daa0373518e6f4dec3569cd5401a14baadbb072) |
-| Verifier switch to the SHAKE-256 class: accepted | [0x1b6e2afe…](https://sepolia.voyager.online/tx/0x1b6e2afed7d0eeec883079fb16ce51141d4bd8ede9ce5f7dae449cefbda3ad1) |
+| Public demo account switched to the small verifier through the guard | [0xd6518422…](https://sepolia.voyager.online/tx/0xd651842233b8f5448e0453674bef2bd95afa6c2b2cc64850be84b7e7b40547) |
+| Browser transfer from the public demo account, validated by small | [0x2f21884a…](https://sepolia.voyager.online/tx/0x2f21884a1ba148cda0b314262958cd28f1e9dd58c191a2fd4a7e4c344b675b2) |
+| Braavos 1.2.0 migrated to small from a clean checkout, default settings | [0x25ca0a05…](https://sepolia.voyager.online/tx/0x25ca0a053a4ffd8dc240845876fd42ca491f24c8753c9404cc8bdec55662118) |
+| OpenZeppelin account migrated to the current class `0x5faf94f2…` | [0x6c46221d…](https://sepolia.voyager.online/tx/0x6c46221d56fe476fa2df0a9bb306c7199ec14de1dd95adefe680428b5e595d8) |
+| Both keys rotated with proofs (`rotationCalls`, to index 1 of the same words) | [0x6013333d…](https://sepolia.voyager.online/tx/0x6013333d18033249e7b6c835aea5a6cd88a50d27efe6eb656b74eef6c765f76) |
+| Transfer signed by the rotated keys | [0x69197cda…](https://sepolia.voyager.online/tx/0x69197cdaf057cb803424e7fbff1177991d70f80f61951f55886593c08db8870) |
+| Rotation to a Falcon key nobody holds: reverted (`invalid key proof`), keys unchanged | [0x65824d80…](https://sepolia.voyager.online/tx/0x65824d80561ada8f1e4137cb630556486a5fa9d71e58b2f0f9a608f47a074c7) |
+| Verifier switch to the Poseidon class (another scheme): reverted (`verifier rejects`) | [0x2db3ee64…](https://sepolia.voyager.online/tx/0x2db3ee641fc2d3e1fdb8d5e9dfd950add3df0aafd4c96e3b110f672fcec2b4f) |
+| Verifier switch to the SHAKE-256 class: accepted, keys and pointer re-checked | [0x7ab2c337…](https://sepolia.voyager.online/tx/0x7ab2c337279ea3723e63685f6d926d2c8f60b7782277a9802afe869011897eb) |
 
 - Migrated account [`0x54370be5…4c41`](https://sepolia.voyager.online/contract/0x54370be5a940849f13c01f269d95d06c57d15495da594f3e01dfb6eebdb4c41):
   balance before 3.974179 STRK, after 3.750300 STRK; the difference equals the migration fee exactly.
@@ -187,11 +206,14 @@ Reproduce with `node signer/mainnet_cost.mjs`.
   hybrid-signed transfer and rejected an ECDSA-only one. Transactions in
   [`contracts/docs/wallet-coverage.md`](contracts/docs/wallet-coverage.md).
 - ECDSA-only transfers from migrated accounts are rejected in `__validate__`.
-- Rotation and verifier switches ran on a fresh OpenZeppelin account migrated to the current
-  class `0x7efafbfb…f75a`; after the two reverted calls, a final transfer still went through
-  ([0x538b7fa4…](https://sepolia.voyager.online/tx/0x538b7fa4c5997f5cabc58b9a6bb8ac99af4d04d96530ea5fbe18f32b31984be)).
-  Rotating both keys used 166M L2 gas, the verifier switch 97M. Reproduce with
-  `node signer/rotation_sepolia.mjs`.
+- Rotation and verifier switches ran on a fresh OpenZeppelin account
+  ([`0x54512ad1…9c19`](https://sepolia.voyager.online/contract/0x54512ad1451450e6713db2c7fe6f69638d0fb471d6788c193dfa199ecbb9c19))
+  migrated to the current class `0x5faf94f2…9f72` (2026-11-16); after the two reverted calls, a
+  final transfer still went through
+  ([0x20d22a13…](https://sepolia.voyager.online/tx/0x20d22a1303dc9b5aeb741aecf3c2ad8c2fbb4fa03e0aaab3d774b13824e2318)).
+  Rotating both keys used 157M L2 gas, the verifier switch 101M (it now re-reads both keys and
+  the pointer after running the candidate). The same run on the 2026-11-02 class is in this
+  file's history. Reproduce with `PQ_ROTATION_RUN=<tag> node signer/rotation_sepolia.mjs`.
 - A validator migrated while staking: two fresh OpenZeppelin accounts staked 2 STRK, attested
   with ECDSA, migrated in place (staker and operational, same addresses), attested the next
   epoch with the hybrid signature
@@ -224,12 +246,32 @@ clip west volume icon sibling act dirt easily magnet fuel rigid robust lunar pau
 ```
 
 Account: [`0x343e3df5…c0db`](https://sepolia.voyager.online/contract/0x343e3df576edca452f2cc6ac5247fc38a3641912f545e25468e3b7e7de1c0db)
-(the page fills the words in for you with "Use the public demo account").
+(the page fills the words in for you with "Use the public demo account"). Since 2026-10-27 it
+uses the small verifier; the page shows the verifier under "Verifier". The page built before that
+switch still works, since signing does not depend on the verifier. `node signer/backup_fixtures_check.mjs`
+checks, read-only, that these words still give the keys stored on the account.
 
 ## Limits
 
+- Testnet only. An independent review is still outstanding
+  ([#9](https://github.com/Ryun1/starknet-pq-account/issues/9)).
 - Unaudited. The Poseidon Falcon variant uses a Poseidon hash-to-point (cheap, non-standard); the
-  SHAKE-256 variant follows the standard and costs about 3.4x the gas.
+  SHAKE-256 variants follow the standard. A transfer costs about 3.4x the Poseidon one's gas with
+  the OpenZeppelin baseline (the default), and about 1.9x with the small verifier.
+- Changing a migrated account's verifier with `set_verifier_class_hash` alone can lock it. Use the
+  guarded switch (`VerifierSwitchGuard`, `switchVerifier` in the kit), which reverts unless the
+  new verifier accepts the switch transaction's own signature. It works only between verifiers of
+  the same scheme; see [`contracts/docs/verifier-replacement.md`](contracts/docs/verifier-replacement.md).
+  The switch needs the active verifier to work: it validates the switch transaction itself, so it
+  is no fallback if the active verifier breaks.
+- Existing accounts run one of five earlier `HybridMigratableAccount` builds, the public demo
+  account included (`0x7b6d5ed4…`). They are declared and listed in the manifest
+  (`legacy_account_classes`, checked by `--chain`), but cannot be rebuilt from this release.
+- Not supported by the guarded switch: accounts on the Poseidon verifier (a scheme change), and
+  `HybridShakeAccount` deployed directly rather than through migration.
+- The compact and record Provably Fast variants cannot be declared on Sepolia: their declares
+  exceed the per-block L2 gas cap of 5.8 x 10^9. The small variant fits with a 6.2% margin, so a
+  larger patch or a lower block cap would make it undeclarable too ([`bench/pf04`](bench/pf04/README.md)).
 - After migration, wallet extras such as SRC-9 outside execution (paymasters, session keys),
   Argent guardians and escapes, and Braavos hardware signers, daily withdrawal limits and
   sessions are not available yet.
@@ -247,6 +289,30 @@ Account: [`0x343e3df5…c0db`](https://sepolia.voyager.online/contract/0x343e3df
 
 ## Quickstart
 
+### Reproduce release `testnet-v1` from a clean checkout
+
+Requirements: Scarb 2.18.0, Node.js 24. No Python or falcon.py needed. These commands are the ones
+run for the clean-checkout evidence in `release/testnet-v1-evidence.json`.
+
+```sh
+git clone https://github.com/0xjuno/starknet-pq-account && cd starknet-pq-account
+(cd signer && npm install --no-package-lock --no-audit --no-fund)
+(cd contracts && scarb build)
+node scripts/release_manifest.mjs --check   # built classes = the pinned ones
+node scripts/release_manifest.mjs --chain   # read-only: all pinned classes are declared on Sepolia
+mkdir -p .keys   # put a funded Sepolia deployer here: deployer-ecdsa.json {"privateKey"}, deployer-address.txt
+cd signer
+node wallet_migrate_demo.mjs --print-config  # verifier and migratable class it will use; sends nothing
+node wallet_migrate_demo.mjs braavos-1.2.0   # deploy a Braavos account, migrate it in place, test it
+```
+
+The verifier is the OpenZeppelin baseline (`HybridShakeAccount`) unless `PQ_VERIFIER` says
+otherwise: `PQ_VERIFIER=shake-pf-small-v1` uses the small Provably Fast verifier, about 45% less
+L2 gas per transfer. Unknown ids and class hashes that are not in the manifest are refused.
+`node scripts/build_page.mjs` rebuilds `docs/index.html` from its template.
+
+### Everything else
+
 Requirements: Scarb 2.18.0, Node.js 20+ (24 for the STRK20 SDK), Python 3.11+ with `numpy`,
 `pycryptodome` and `beartype`, and a [falcon.py](https://github.com/tprest/falcon.py) checkout at
 commit `5145a818c9512b4a443507d3375e75dae3076af6`.
@@ -254,7 +320,7 @@ commit `5145a818c9512b4a443507d3375e75dae3076af6`.
 ```sh
 cd contracts
 scarb build
-scarb cairo-test          # 54 tests
+scarb cairo-test          # 105 tests
 
 cd ../signer
 npm install
@@ -278,7 +344,16 @@ node validator_sepolia.mjs      # stake, attest, migrate both accounts in place,
 
 ## Credits
 
-Built on [OpenZeppelin cairo-pq-verifiers](https://github.com/OpenZeppelin/cairo-pq-verifiers)
-(MIT), [falcon.py](https://github.com/tprest/falcon.py) (MIT) and
-[@noble/post-quantum](https://github.com/paulmillr/noble-post-quantum) (MIT). See
-[NOTICE.md](NOTICE.md). License: MIT.
+- [Ryan Williams](https://github.com/Ryun1) (Starknet Foundation) built the Provably Fast
+  verifier integration on top of this account in his fork, with the per-verifier budgets
+  (`bench/pf03`, `bench/pf04`), the guarded verifier switch (`VerifierSwitchGuard`, `bench/pf06`),
+  the release manifest and its checks, and the reproducible page build (`scripts/`). His commits
+  are merged here as he wrote them. The small verifier uses the `fj_dee1326c` patch from the
+  StarkWare and Starknet Foundation Falcon optimization challenge.
+- Carlos Castillo ([Zealynx](https://zealynx.io)) reviewed the migratable account at `1345ece` and
+  found the two gaps fixed in `5a1269f`: key rotations without a possession proof, and verifier
+  switches without a validity check ([forum thread](https://community.starknet.io/t/116448)).
+- Built on [OpenZeppelin cairo-pq-verifiers](https://github.com/OpenZeppelin/cairo-pq-verifiers)
+  (MIT), [falcon.py](https://github.com/tprest/falcon.py) (MIT) and
+  [@noble/post-quantum](https://github.com/paulmillr/noble-post-quantum) (MIT). See
+  [NOTICE.md](NOTICE.md). License: MIT.

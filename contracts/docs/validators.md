@@ -62,8 +62,10 @@ chain info). On Sepolia the minimum stake is 1 STRK, an epoch is 231 blocks, the
 Two fresh OpenZeppelin accounts (class `0x05b4b537…3564`): staker
 `0x1867774df6f3547fce5c22a1ea47bcd742938b58e7719f22506bda7712fde46`, operational
 `0x4b69fe1ec9c07293fa4eb387ed8d9d8759aaf0451320b5ea549cc08ab7277e8`. Migration target: the
-current `HybridMigratableAccount` `0x7efafbfbaf02af30bc17d55366392e129fea252d7597650da45a61d0869f75a`
-with the baseline SHAKE-256 verifier.
+`HybridMigratableAccount` build of 2026-11-02, `0x7efafbfbaf02af30bc17d55366392e129fea252d7597650da45a61d0869f75a`,
+with the baseline SHAKE-256 verifier. The class this commit builds (`0x5faf94f2…`, pinned in
+`release/testnet-v1.json`) keeps the same migration path; it adds a state check to verifier
+switches, which the validator run did not exercise.
 
 | Step | Signer | Transaction | Result |
 | --- | --- | --- | --- |

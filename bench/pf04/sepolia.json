@@ -1,0 +1,194 @@
+{
+  "description": "PF-04 Sepolia receipts; see bench/pf04/README.md",
+  "generated_utc": "2026-10-27T15:18:47.836Z",
+  "runs": {
+    "baseline": {
+      "argent-0.5.0": {
+        "migration": {
+          "tx": "0x2bd473956e65ee2a017ddcfd4b5a03710fa329f1fdfa60e0de2c05f4dd91f77",
+          "status": "SUCCEEDED",
+          "block": 16813792,
+          "timestamp": 1792387175,
+          "l2_gas": 74716214,
+          "l1_data_gas": 3328,
+          "l1_gas": 0,
+          "fee_fri": "1091065355290573742",
+          "l2_gas_price_fri": "14602792309"
+        },
+        "hybridTransfer": {
+          "tx": "0x348a4cac1c1b0479057a18f021ac9a65e36f18ee6c5839644ef627fe77309d",
+          "status": "SUCCEEDED",
+          "block": 16813796,
+          "timestamp": 1792387182,
+          "l2_gas": 53946323,
+          "l1_data_gas": 192,
+          "l1_gas": 0,
+          "fee_fri": "787766950610947631",
+          "l2_gas_price_fri": "14602792309"
+        }
+      },
+      "braavos-1.2.0": {
+        "migration": {
+          "tx": "0x1a4972fc9e3315c62ebaec99a40de4248e86bbe15ebf5f3892bfc33b71e89f5",
+          "status": "SUCCEEDED",
+          "block": 16813908,
+          "timestamp": 1792387374,
+          "l2_gas": 70122982,
+          "l1_data_gas": 3328,
+          "l1_gas": 0,
+          "fee_fri": "1023991342367521054",
+          "l2_gas_price_fri": "14602792309"
+        },
+        "hybridTransfer": {
+          "tx": "0x1f214500c70833bf88fa6d03c33999a7b23dec0ac188d761c8018d3d078d5c2",
+          "status": "SUCCEEDED",
+          "block": 16813912,
+          "timestamp": 1792387381,
+          "l2_gas": 53952403,
+          "l1_data_gas": 192,
+          "l1_gas": 0,
+          "fee_fri": "787855735588186351",
+          "l2_gas_price_fri": "14602792309"
+        }
+      },
+      "argent-0.3.1": {
+        "migration": {
+          "tx": "0x6d4959b5a61b74af5290f718558bad4eabc1dc662bcd5af072425873c7132b4",
+          "status": "SUCCEEDED",
+          "block": 16813745,
+          "timestamp": 1792387094,
+          "l2_gas": 137979920,
+          "l1_data_gas": 3328,
+          "l1_gas": 0,
+          "fee_fri": "2014892114706210896",
+          "l2_gas_price_fri": "14602792309"
+        },
+        "hybridTransfer": {
+          "tx": "0x7a568054220fe93b40f335dde033bfc9fad008a2f1699f6e7c59ed7333ac91c",
+          "status": "SUCCEEDED",
+          "block": 16813750,
+          "timestamp": 1792387102,
+          "l2_gas": 49612741,
+          "l1_data_gas": 192,
+          "l1_gas": 0,
+          "fee_fri": "724484552710926793",
+          "l2_gas_price_fri": "14602792309"
+        }
+      }
+    },
+    "small": {
+      "argent-0.5.0": {
+        "verifierClass": "0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1",
+        "migration": {
+          "tx": "0x61e91e09b78489dc91a445ec1842c1d72cff6bf792b715c1f9c6fda3d417aa9",
+          "status": "SUCCEEDED",
+          "block": 17236095,
+          "timestamp": 1793114068,
+          "l2_gas": 50330764,
+          "l1_data_gas": 3328,
+          "l1_gas": 0,
+          "fee_fri": "1115284796153759380",
+          "l2_gas_price_fri": "18925328727"
+        },
+        "hybridTransfer": {
+          "tx": "0x7a991632a4af996e569cb0c6215a898233c94d42f87dfd3bf35096d8be2707a",
+          "status": "SUCCEEDED",
+          "block": 17236101,
+          "timestamp": 1793114079,
+          "l2_gas": 29566303,
+          "l1_data_gas": 192,
+          "l1_gas": 0,
+          "fee_fri": "571522289886427657",
+          "l2_gas_price_fri": "18925328727"
+        },
+        "keysPreserved": true,
+        "balanceDropEqualsFee": true,
+        "ecdsaOnlyTransfer": "rejected in __validate__"
+      },
+      "argent-0.3.1": {
+        "verifierClass": "0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1",
+        "migration": {
+          "tx": "0x2aea49f4bfe17a5c651ac334c8570931e9185bf59a9eed80895ba32f85bc1c5",
+          "status": "SUCCEEDED",
+          "block": 17236155,
+          "timestamp": 1793114173,
+          "l2_gas": 83499920,
+          "l1_data_gas": 3328,
+          "l1_gas": 0,
+          "fee_fri": "1735756585466613648",
+          "l2_gas_price_fri": "18928732657"
+        },
+        "hybridTransfer": {
+          "tx": "0x47feec231ef96040ec28f68e37fe0e1f2f50a2beae94454c08549c1ae1e93e9",
+          "status": "SUCCEEDED",
+          "block": 17236160,
+          "timestamp": 1793114181,
+          "l2_gas": 29554543,
+          "l1_data_gas": 192,
+          "l1_gas": 0,
+          "fee_fri": "570858128175987263",
+          "l2_gas_price_fri": "18928732657"
+        },
+        "keysPreserved": true,
+        "balanceDropEqualsFee": true,
+        "ecdsaOnlyTransfer": "rejected in __validate__"
+      },
+      "braavos-1.2.0": {
+        "verifierClass": "0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1",
+        "migration": {
+          "tx": "0x5c8b9dced834bc32593a92978d72a2f8d8493c1a579e47317939006916e9cde",
+          "status": "SUCCEEDED",
+          "block": 17236129,
+          "timestamp": 1793114127,
+          "l2_gas": 48531148,
+          "l1_data_gas": 3328,
+          "l1_gas": 0,
+          "fee_fri": "1074585590524421388",
+          "l2_gas_price_fri": "18928732657"
+        },
+        "hybridTransfer": {
+          "tx": "0x142654a41338070e50af76fa6c9d7c900fcb1107522a4a3b16f70c59e18f8ae",
+          "status": "SUCCEEDED",
+          "block": 17236135,
+          "timestamp": 1793114137,
+          "l2_gas": 29565553,
+          "l1_data_gas": 192,
+          "l1_gas": 0,
+          "fee_fri": "571245341410872545",
+          "l2_gas_price_fri": "18928732657"
+        },
+        "keysPreserved": true,
+        "balanceDropEqualsFee": true,
+        "ecdsaOnlyTransfer": "rejected in __validate__"
+      }
+    }
+  },
+  "declares": {
+    "HybridShakeVerifierPfSmall": {
+      "classHash": "0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1",
+      "from": "deployer",
+      "tx": "0x18feecd71b354a738babe560822d471232d6ec6ff5b5097877bc458b3c0cd62",
+      "status": "SUCCEEDED",
+      "block": 17236040,
+      "timestamp": 1793113973,
+      "l2_gas": 5438297280,
+      "l1_data_gas": 192,
+      "l1_gas": 0,
+      "fee_fri": "103475372340476235264",
+      "l2_gas_price_fri": "18925328727"
+    },
+    "VerifierSwitchGuard": {
+      "classHash": "0x44779ad7a4ea11318759272383a06d06fdf1b7c007ba1e5f38a2096e6e26178",
+      "from": "pf04-small argent-0.5.0",
+      "tx": "0x687a8500c3732f619db3a0f8db15ae271a8391282cb52f91b0f3cab69169e23",
+      "status": "SUCCEEDED",
+      "block": 17236225,
+      "timestamp": 1793114293,
+      "l2_gas": 117313246,
+      "l1_data_gas": 192,
+      "l1_gas": 0,
+      "fee_fri": "2240206129481475134",
+      "l2_gas_price_fri": "18928732657"
+    }
+  }
+}

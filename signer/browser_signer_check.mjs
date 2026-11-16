@@ -49,18 +49,18 @@ writeFileSync(FIXTURE, `//! Browser-signed fixture: Falcon-512 signature produce
 use pqbench_falcon_512::Falcon512ShakeVerifier;
 use crate::hybrid::verify_hybrid;
 
-const MSG: felt252 = ${num.toHex(txHash)};
-const ECDSA_PK: felt252 = ${ecdsaPub};
-const ECDSA_R: felt252 = ${num.toHex(e.r)};
-const ECDSA_S: felt252 = ${num.toHex(e.s)};
+pub const MSG: felt252 = ${num.toHex(txHash)};
+pub const ECDSA_PK: felt252 = ${ecdsaPub};
+pub const ECDSA_R: felt252 = ${num.toHex(e.r)};
+pub const ECDSA_S: felt252 = ${num.toHex(e.s)};
 
-fn falcon_pk() -> Array<felt252> {
+pub fn falcon_pk() -> Array<felt252> {
     array![
 ${arr(jsPk)}
     ]
 }
 
-fn falcon_sig() -> Array<felt252> {
+pub fn falcon_sig() -> Array<felt252> {
     array![
 ${arr(jsSig)}
     ]

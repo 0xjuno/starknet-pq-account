@@ -1,0 +1,112 @@
+{
+  "description": "PF-06 Sepolia receipts: guarded verifier switch baseline -> small -> baseline; see bench/pf06/README.md",
+  "generated_utc": "2026-10-27T17:15:31.145Z",
+  "classes": {
+    "baseline": "0x2255fc213bf39d1df2129c9e068b363f2b11a27b70b4b2c48df8ea4275f1c92",
+    "small": "0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1",
+    "guard": "0x44779ad7a4ea11318759272383a06d06fdf1b7c007ba1e5f38a2096e6e26178",
+    "migratable": "0x4b067679dbb29516dd79fba49ba1f1b2bc3973b33c74881ff56098d19e27a78"
+  },
+  "guard": {
+    "address": "0x5093253fe6ee74bce57ae826a72bc94ddf02b6fbe20db5512e744a9a304945e",
+    "deploy": {
+      "tx": "0x20de579c5518fd93fccdf176e79d3e1609a6caf7126afc4ecb99eb41471a7b4",
+      "status": "SUCCEEDED",
+      "block": 17240221,
+      "timestamp": 1793121166,
+      "l2_gas": 1252160,
+      "l1_data_gas": 224,
+      "l1_gas": 0,
+      "fee_fri": "57803608912141568",
+      "l2_gas_price_fri": "19064518710"
+    }
+  },
+  "account": {
+    "wallet": "argent-0.5.0",
+    "address": "0x7ae9f9ba5e264c813c574d8e858199d483f1d8ea641b064d48cf9df5f8a8dff"
+  },
+  "migration": {
+    "verifierClass": "0x2255fc213bf39d1df2129c9e068b363f2b11a27b70b4b2c48df8ea4275f1c92",
+    "migration": {
+      "tx": "0x5e50532c13a0e3a5058eeae41a14ff4213882d71f3ec3e5316fbc1fd20c0d33",
+      "status": "SUCCEEDED",
+      "block": 17240205,
+      "timestamp": 1793121138,
+      "l2_gas": 74715934,
+      "l1_data_gas": 3328,
+      "l1_gas": 0,
+      "fee_fri": "1933395141416713812",
+      "l2_gas_price_fri": "19064518710"
+    },
+    "hybridTransfer": {
+      "tx": "0x32c60a6be9b348b0977e2c253237c5a53be77e07c7f5e2a9599aad1d9ec0e0d",
+      "status": "SUCCEEDED",
+      "block": 17240210,
+      "timestamp": 1793121147,
+      "l2_gas": 49600411,
+      "l1_data_gas": 192,
+      "l1_gas": 0,
+      "fee_fri": "979525227029098930",
+      "l2_gas_price_fri": "19064518710"
+    },
+    "keysPreserved": true,
+    "balanceDropEqualsFee": true,
+    "ecdsaOnlyTransfer": "rejected in __validate__"
+  },
+  "steps": {
+    "toSmall": {
+      "tx": "0x4a7277f9add5725df18f8c12b7c56a9c832f9a7e185a462ee76f7b44adea98c",
+      "status": "SUCCEEDED",
+      "block": 17240258,
+      "timestamp": 1793121230,
+      "l2_gas": 86847396,
+      "l1_data_gas": 192,
+      "l1_gas": 0,
+      "fee_fri": "1693482916658745240",
+      "l2_gas_price_fri": "19064518710",
+      "verifierAfter": "0x333aa6a603a1edcf37867d774d65220528e684ed496f5d8a73ce24fcafb0fb1",
+      "keysUnchanged": true
+    },
+    "transferOnSmall": {
+      "tx": "0x2e07b9bc578ae0b76a156b8876e72ed825a664932f90e50b90aea71100ba3b6",
+      "status": "SUCCEEDED",
+      "block": 17240263,
+      "timestamp": 1793121238,
+      "l2_gas": 29553503,
+      "l1_data_gas": 192,
+      "l1_gas": 0,
+      "fee_fri": "595473032291507210",
+      "l2_gas_price_fri": "19064518710"
+    },
+    "ecdsaOnlyOnSmall": {
+      "result": "rejected in __validate__"
+    },
+    "poseidonRefused": {
+      "result": "refused after simulation: Guard: signature rejected"
+    },
+    "toBaseline": {
+      "tx": "0x563207a483ba3d5f69111b39c8395ce32b2096e17098932b67f160930e73867",
+      "status": "SUCCEEDED",
+      "block": 17240302,
+      "timestamp": 1793121305,
+      "l2_gas": 80951238,
+      "l1_data_gas": 192,
+      "l1_gas": 0,
+      "fee_fri": "1580673563223468996",
+      "l2_gas_price_fri": "19064518710",
+      "verifierAfter": "0x2255fc213bf39d1df2129c9e068b363f2b11a27b70b4b2c48df8ea4275f1c92",
+      "keysUnchanged": true
+    },
+    "transferOnBaseline": {
+      "tx": "0x4abd791dbee0f6dda5634bc20936db18964edb4b31e45be055aff6a1f27cd3c",
+      "status": "SUCCEEDED",
+      "block": 17240307,
+      "timestamp": 1793121314,
+      "l2_gas": 49605821,
+      "l1_data_gas": 192,
+      "l1_gas": 0,
+      "fee_fri": "979972265881125662",
+      "l2_gas_price_fri": "19064518710"
+    }
+  }
+}

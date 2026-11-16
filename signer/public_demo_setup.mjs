@@ -1,21 +1,28 @@
 // Public demo account for docs/index.html. Its mnemonic is published on purpose so anyone can
 // try the browser signer. TESTNET ONLY: it holds Sepolia STRK with no value and is refilled.
-//   1. declare the current HybridMigratableAccount (adds rotate_ecdsa_public_key)
-//   2. new mnemonic -> OZ account, funded, deployed, migrated in place with the SHAKE verifier
+//   1. the verifier and migratable classes are pinned in release/testnet-v1.json and already
+//      declared: PQ_VERIFIER=<id> picks a SHAKE-256 verifier, default shake-baseline
+//      (--print-config prints the choice and sends nothing)
+//   2. new mnemonic -> OZ account, funded, deployed, migrated in place with that verifier
 //   3. one hybrid transfer signed the browser way
-import { Account, CallData, RpcProvider, Signer, cairo, ec, hash, json, num } from "starknet";
+import { Account, CallData, RpcProvider, Signer, cairo, ec, hash, num } from "starknet";
 import { generateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { deriveAccountKeys } from "./pq_keys.mjs";
 import { makeNtt, publicKeyFelts, signatureFelts, signTxHash } from "./falcon_adapter.mjs";
-import { KEYS, ROOTS, RPC, TARGET } from "./config.mjs";
+import { KEYS, ROOTS, RPC } from "./config.mjs";
 import { registrationHash } from "./pq_account_kit.mjs";
+import { MIGRATABLE_CLASS, selectedVerifier } from "./verifiers.mjs";
 
 const STATE_FILE = `${KEYS}/public-demo-state.json`;
 const STRK = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 const OZ_ACCOUNT_CLASS = "0x05b4b537eaa2399e3aa99c4e2e0208ebd6c71bc1467938cd52c798c601e43564";
-const SHAKE_CLASS = JSON.parse(readFileSync(`${KEYS}/browser-state.json`, "utf8")).shakeClass;
+const VERIFIER = selectedVerifier();
+if (process.argv.includes("--print-config")) {
+  console.log(`verifier: ${VERIFIER.id} ${VERIFIER.classHash}\nmigratable class: ${MIGRATABLE_CLASS}`);
+  process.exit(0);
+}
 const VOYAGER = "https://sepolia.voyager.online";
 const FUND = 50n * 10n ** 18n;
 const ntt = makeNtt(JSON.parse(readFileSync(ROOTS, "utf8")));
@@ -58,16 +65,7 @@ const deployerAcc = new Account({ provider, address: deployerAddress, signer: de
 const TIP = (await provider.getEstimateTip("latest", { maxBlocks: 5 })).recommendedTip;
 log("deployer:", fmt(await strkBalance(deployerAddress)));
 
-// 1. current migratable class
-if (!state.migratableClass) {
-  const sierra = json.parse(readFileSync(`${TARGET}/pq_hybrid_HybridMigratableAccount.contract_class.json`, "utf8"));
-  const casm = json.parse(readFileSync(`${TARGET}/pq_hybrid_HybridMigratableAccount.compiled_contract_class.json`, "utf8"));
-  const nonce = await provider.getNonceForAddress(deployerAddress, "latest");
-  const d = await deployerAcc.declareIfNot({ contract: sierra, casm }, { nonce, tip: TIP, resourceBounds: await bounds(800000000n, [5n, 4n], 200000n) });
-  if (d.transaction_hash) { const rc = await provider.waitForTransaction(d.transaction_hash); log("declare fee:", rc.actual_fee ? fmt(BigInt(rc.actual_fee.amount)) : "n/a"); }
-  state.migratableClass = d.class_hash; save();
-  log("migratable class (with ECDSA rotation):", d.class_hash);
-}
+log("verifier:", VERIFIER.id, VERIFIER.classHash, " migratable class:", MIGRATABLE_CLASS);
 
 // 2. public demo account
 if (!state.mnemonic) { state.mnemonic = generateMnemonic(wordlist, 256); save(); }
@@ -95,8 +93,8 @@ if ((await classAt(address)) === num.toHex(OZ_ACCOUNT_CLASS)) {
   const nonce = await provider.getNonceForAddress(address, "latest");
   const proof = await new BrowserHybridSigner(keys).signRaw(registrationHash(keys.ecdsaPublicKey, falconFelts));
   const m = await oz.execute([
-    { contractAddress: address, entrypoint: "upgrade", calldata: [state.migratableClass] },
-    { contractAddress: address, entrypoint: "migrate", calldata: [keys.ecdsaPublicKey, num.toHex(falconFelts.length), ...falconFelts, SHAKE_CLASS, num.toHex(proof.length), ...proof] },
+    { contractAddress: address, entrypoint: "upgrade", calldata: [MIGRATABLE_CLASS] },
+    { contractAddress: address, entrypoint: "migrate", calldata: [keys.ecdsaPublicKey, num.toHex(falconFelts.length), ...falconFelts, VERIFIER.classHash, num.toHex(proof.length), ...proof] },
   ], { nonce, tip: TIP, resourceBounds: await bounds(250000000n) });
   await provider.waitForTransaction(m.transaction_hash);
   state.migrationTx = m.transaction_hash; save();
