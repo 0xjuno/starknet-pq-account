@@ -210,10 +210,17 @@ fn small_to_small_key_read_and_back_keeps_the_keys() {
     assert_unchanged(account);
 }
 
+// From class 0x7efafbfb… on, `set_verifier_class_hash` runs the candidate on the transaction's
+// own signature and checks the keys and pointer itself, so the account reverts before the guard
+// is reached. The guard still covers accounts on earlier classes, which do not check.
+
 #[test]
 fn incompatible_scheme_reverts_the_whole_transaction() {
     // Same key, Poseidon hash-to-point: rejects the SHAKE signature.
-    assert_switch_reverts(HybridPoseidonAccount::TEST_CLASS_HASH.try_into().unwrap(), VerifierSwitchGuard::INCOMPATIBLE);
+    assert_switch_reverts(
+        HybridPoseidonAccount::TEST_CLASS_HASH.try_into().unwrap(),
+        HybridMigratableAccount::INCOMPATIBLE_VERIFIER,
+    );
 }
 
 #[test]
@@ -233,12 +240,46 @@ fn class_without_is_valid_signature_reverts() {
 
 #[test]
 fn class_with_a_wrong_answer_reverts() {
-    assert_switch_reverts(WrongAnswerVerifier::TEST_CLASS_HASH.try_into().unwrap(), VerifierSwitchGuard::INCOMPATIBLE);
+    assert_switch_reverts(
+        WrongAnswerVerifier::TEST_CLASS_HASH.try_into().unwrap(),
+        HybridMigratableAccount::INCOMPATIBLE_VERIFIER,
+    );
 }
 
 #[test]
 fn candidate_that_rewrites_the_key_reverts_and_the_key_is_restored() {
-    assert_switch_reverts(KeyRewritingVerifier::TEST_CLASS_HASH.try_into().unwrap(), VerifierSwitchGuard::STATE_CHANGED);
+    assert_switch_reverts(
+        KeyRewritingVerifier::TEST_CLASS_HASH.try_into().unwrap(), HybridMigratableAccount::STATE_CHANGED,
+    );
+}
+
+#[test]
+fn direct_switch_to_a_key_rewriting_candidate_reverts() {
+    // Without the guard in the multicall: the account's own check catches it.
+    let (account, _) = setup();
+    let candidate: ClassHash = KeyRewritingVerifier::TEST_CLASS_HASH.try_into().unwrap();
+    let calls = array![
+        Call {
+            to: account, selector: selector!("set_verifier_class_hash"),
+            calldata: array![candidate.into()].span(),
+        },
+    ];
+    assert_reverts_with(signed(account, calls), HybridMigratableAccount::STATE_CHANGED);
+    assert_unchanged(account);
+}
+
+#[test]
+fn direct_switch_to_an_incompatible_scheme_reverts() {
+    let (account, _) = setup();
+    let candidate: ClassHash = HybridPoseidonAccount::TEST_CLASS_HASH.try_into().unwrap();
+    let calls = array![
+        Call {
+            to: account, selector: selector!("set_verifier_class_hash"),
+            calldata: array![candidate.into()].span(),
+        },
+    ];
+    assert_reverts_with(signed(account, calls), HybridMigratableAccount::INCOMPATIBLE_VERIFIER);
+    assert_unchanged(account);
 }
 
 #[test]
