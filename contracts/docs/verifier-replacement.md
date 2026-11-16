@@ -135,16 +135,19 @@ figures come from PF-04.
 on 4 migratable class versions. All are registered, all have `set_verifier_class_hash` and
 `is_valid_signature`, and every verifier they point at has `is_valid_signature`. So the guarded
 switch needs no account upgrade on any of them, and the devnet run above shows the switch
-working on each of the four classes.
+working on each of those four classes. Two builds followed; the accounts each class runs are
+listed in `release/testnet-v1.json` and checked by `release_manifest.mjs --chain`.
 
 | Migratable class | Accounts | Notes |
 | --- | ---: | --- |
-| `0x4b067679dbb29516dd79fba49ba1f1b2bc3973b33c74881ff56098d19e27a78` | 11 | current class (2026-10-19); this commit rebuilds to the same hash |
+| `0x5faf94f20ce4b58b22805b4199b889adb302904301890d3d723bea7b62a9f72` | 12 | current class (2026-11-16); this commit rebuilds to the same hash. `set_verifier_class_hash` re-reads both keys and the pointer after running the candidate (wallet-coverage run v4, rotation run v2) |
+| `0x7efafbfbaf02af30bc17d55366392e129fea252d7597650da45a61d0869f75a` | 14 | 2026-11-02: rotations and switches take a proof; the switch runs the candidate on the transaction's own signature (wallet-coverage run v3, rotation run, the Sepolia validator's two accounts) |
+| `0x4b067679dbb29516dd79fba49ba1f1b2bc3973b33c74881ff56098d19e27a78` | 11 | 2026-10-19 (the class `testnet-v1` first pinned; the devnet run and `bench/pf06` ran on it) |
 | `0x660679aa09bef2ef29e1a2ebe21ee85d87bacde8746430b380425db5dd3c31b` | 2 | earlier class (Argent and Braavos demo accounts) |
 | `0x7b6d5ed4cbb6c7a2633dd9139c25ffb76bb608cafbba9e424a277a885432b25` | 1 | public demo account |
 | `0xae4154b7e35c9475f4875757bcfa2b19ca88fc2e9bd9fa793e82a91ef5815f` | 3 | includes the README's in-place OpenZeppelin migration (`0x54370be5…`) |
 
-| Verifier | Accounts | Class |
+| Verifier | Accounts (2026-10-27 inventory) | Class |
 | --- | ---: | --- |
 | `0x2255fc213bf39d1df2129c9e068b363f2b11a27b70b4b2c48df8ea4275f1c92` | 15 | `HybridShakeAccount` (this commit rebuilds to the same hash): can switch to an optimized SHAKE-256 verifier |
 | `0x7f10b6f2f70e72ef87e97844b5f6f13d384c92afcfed2a1233a03524d359d6f` | 2 | `HybridPoseidonAccount`: needs a scheme change, not supported by the guarded switch |
@@ -167,7 +170,7 @@ the Poseidon verifier in simulation, switched back and made another transfer. Ea
 
 | Account | Route | Evidence |
 | --- | --- | --- |
-| Migrated, any of the four migratable classes above, on the SHAKE verifier `0x2255fc21…` (15 accounts) | guarded switch (`switchVerifier`) | devnet on all four classes; Sepolia on `0x4b067679…` |
+| Migrated, any of the migratable classes above, on the SHAKE verifier `0x2255fc21…` | guarded switch (`switchVerifier`) | devnet on the four 2026-10-27 classes; Sepolia on `0x4b067679…` (guard, `bench/pf06`) and on `0x7efafbfb…` and `0x5faf94f2…` (the account's own check, `rotation_sepolia.mjs`) |
 | Migrated, on the Poseidon verifier `0x7f10b6f2…` (2 accounts) | not supported | a scheme change; the guard rejects it |
 | Not migrated yet, any wallet class in `wallet-coverage.md` | migrate with `verifierClass` = small | Sepolia: Argent 0.5.0, Argent 0.3.1, Braavos 1.2.0 (`bench/pf04`); Cairo: all three callback paths |
 | Directly deployed `HybridShakeAccount` | none | no verifier setter and no upgrade entry point: it stays on the baseline verifier; no in-place replacement is offered |
