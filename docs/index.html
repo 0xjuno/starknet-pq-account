@@ -3,160 +3,246 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PQ account signer</title>
+<title>starknet-pq-account demo</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
 <style>
   :root {
-    --bg:#fff; --ink:#111; --mute:#6a6a6a; --rule:#e3e3e3; --well:#f4f4f2;
-    --ok:#0a7a43; --bad:#c2410c; --hi:#d9480f;
-    --term:#111214; --term-ink:#d4d4d4; --term-ok:#6ad19a; --term-bad:#ff8a70;
+    --ink:#191f28; --sub:#4e5968; --mute:#6b7684; --faint:#b0b8c1; --line:#e5e8eb;
+    --soft:#f2f4f6; --softer:#f9fafb;
+    --blue:#3182f6; --blue-hover:#1b64da; --blue-soft:#e8f3ff;
+    --green:#0e9f5b; --green-soft:#e6f6ee; --red:#e5484d; --red-soft:#fdecec; --amber:#d97706;
     --mono:ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace;
-    --sans:-apple-system,"Segoe UI",system-ui,sans-serif;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#0c0c0d; --ink:#ececec; --mute:#8f8f8f; --rule:#29292c; --well:#151517; --ok:#5fd08f; --bad:#ff8a70; --hi:#f0703a; --term:#000; color-scheme:dark; }
   }
   * { box-sizing:border-box; }
   [hidden] { display:none !important; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.55 var(--sans); }
-  a { color:inherit; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; background:#fff; color:var(--ink); font:17px/1.6 "Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; letter-spacing:-0.005em; }
+  a { color:var(--blue); text-decoration:none; }
+  a:hover { text-decoration:underline; }
   p { margin:0; }
-  .mute { color:var(--mute); }
-  .small { font-size:13px; }
 
-  .bar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:11px 24px; border-bottom:1px solid var(--rule); font:13px var(--mono); }
-  .bar b { font-weight:600; }
-  .bar nav { display:flex; gap:10px; align-items:center; }
-  .tag { border:1px solid var(--rule); padding:0 6px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--mute); }
+  .top { position:sticky; top:0; z-index:5; background:rgba(255,255,255,.92); backdrop-filter:saturate(180%) blur(12px); border-bottom:1px solid var(--line); }
+  .top-in { max-width:760px; margin:0 auto; padding:14px 24px; display:flex; align-items:center; gap:12px; }
+  .brand { display:flex; align-items:center; gap:10px; color:var(--ink); font-weight:700; font-size:16px; }
+  .brand svg { width:28px; height:28px; display:block; }
+  .top nav { margin-left:auto; display:flex; align-items:center; gap:8px; }
+  .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:var(--soft); color:var(--sub); font-size:13px; font-weight:600; white-space:nowrap; }
+  .top nav a { padding:6px 12px; border-radius:999px; color:var(--sub); font-size:14px; font-weight:600; }
+  .top nav a:hover { background:var(--soft); text-decoration:none; }
 
-  .wrap { max-width:1080px; margin:0 auto; padding:28px 24px 56px; }
-  h1 { font-size:22px; font-weight:600; letter-spacing:-.01em; margin:0 0 6px; }
-  .lead { color:var(--mute); max-width:64ch; }
-  .lead + .lead { margin-top:4px; }
-  .grid { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:48px; margin-top:24px; align-items:start; }
+  .wrap { max-width:760px; margin:0 auto; padding:64px 24px 120px; }
+  .eyebrow { margin:0 0 12px; color:var(--blue); font-size:15px; font-weight:700; }
+  h1 { margin:0; font-size:40px; line-height:1.28; letter-spacing:-0.03em; font-weight:700; }
+  .lead { margin:20px 0 0; font-size:19px; line-height:1.6; color:var(--sub); }
+  .lead + .lead { margin-top:10px; font-size:16px; color:var(--mute); }
 
-  .step { display:grid; grid-template-columns:34px minmax(0,1fr); column-gap:12px; padding:20px 0; border-top:1px solid var(--rule); }
-  .step > .n { font:600 13px/22px var(--mono); color:var(--mute); }
-  .step > div { display:grid; gap:10px; min-width:0; }
-  h2 { font-size:15px; font-weight:600; line-height:22px; margin:0; }
-  h2 .mute { font-weight:400; }
-  textarea { width:100%; font:13px/1.5 var(--mono); padding:9px 10px; border:1px solid var(--rule); border-radius:3px; background:var(--well); color:var(--ink); resize:vertical; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; }
-  button { font:500 13px var(--sans); padding:7px 12px; border-radius:3px; border:1px solid var(--ink); background:var(--ink); color:var(--bg); cursor:pointer; }
-  button.alt { background:transparent; color:var(--ink); border-color:var(--rule); }
-  button.alt:hover:not(:disabled) { border-color:var(--ink); }
-  button:disabled { opacity:.4; cursor:not-allowed; }
-  dl { margin:0; display:grid; grid-template-columns:max-content minmax(0,1fr); gap:3px 16px; font-size:12px; }
-  dt { color:var(--mute); }
-  dd { margin:0; font-family:var(--mono); word-break:break-all; }
-  dd .ok { color:var(--ok); } dd .bad { color:var(--bad); }
-  .log { font:12px/1.55 var(--mono); white-space:pre-wrap; word-break:break-word; background:var(--term); color:var(--term-ink); border-radius:3px; padding:9px 12px; min-height:38px; }
-  .log.ok { color:var(--term-ok); } .log.bad { color:var(--term-bad); }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:40px; }
+  .stat { padding:22px 20px; border-radius:20px; background:var(--softer); }
+  .stat b { display:block; font-size:32px; line-height:1.15; letter-spacing:-0.03em; font-weight:700; color:var(--blue); font-variant-numeric:tabular-nums; }
+  .stat span { display:block; margin-top:8px; color:var(--sub); font-size:15px; line-height:1.5; }
 
-  aside { position:sticky; top:16px; display:grid; gap:22px; padding-top:20px; border-top:1px solid var(--ink); font-size:13px; }
-  aside h3 { font:600 11px var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--mute); margin:0 0 8px; }
-  aside ul { margin:0; padding-left:16px; display:grid; gap:4px; }
-  .felts { height:20px; background:
-    repeating-linear-gradient(90deg, transparent 0 calc(100% / 62 - 1px), var(--bg) calc(100% / 62 - 1px) calc(100% / 62)),
-    linear-gradient(90deg, var(--ink) 0 3.2258%, var(--mute) 0 50%, var(--hi) 0 53.2258%, var(--rule) 0); }
-  .legend { display:grid; gap:2px; margin-top:8px; font:12px var(--mono); color:var(--mute); }
-  .legend span::before { content:""; display:inline-block; width:8px; height:8px; margin-right:7px; background:var(--c); }
-  .lg-e { --c:var(--ink); } .lg-s { --c:var(--mute); } .lg-k { --c:var(--hi); } .lg-h { --c:var(--rule); }
-  .cost { width:100%; border-collapse:collapse; font:12px var(--mono); }
-  .cost td { padding:4px 0; border-bottom:1px solid var(--rule); }
-  .cost td + td { text-align:right; white-space:nowrap; }
+  .card { margin-top:20px; padding:30px 28px; border-radius:24px; background:#fff; border:1px solid var(--line); }
+  .card:first-of-type { margin-top:56px; }
+  .card-h { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+  .num { flex:none; width:30px; height:30px; border-radius:50%; background:var(--blue-soft); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; }
+  h2 { margin:0; font-size:22px; line-height:1.4; letter-spacing:-0.02em; font-weight:700; }
+  .opt { margin-left:2px; padding:2px 8px; border-radius:999px; background:var(--soft); color:var(--mute); font-size:13px; font-weight:600; }
+  .desc { color:var(--sub); font-size:16px; line-height:1.6; }
+  .warn { margin-top:14px; color:var(--mute); font-size:14px; }
 
-  footer { margin-top:36px; padding-top:12px; border-top:1px solid var(--rule); font:12px var(--mono); color:var(--mute); }
-  @media (max-width:860px) { .grid { grid-template-columns:minmax(0,1fr); gap:8px; } aside { position:static; } }
-  @media (max-width:480px) { .bar, .wrap { padding-left:16px; padding-right:16px; } .step { grid-template-columns:minmax(0,1fr); } }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:20px; }
+  button { font:inherit; font-size:16px; font-weight:600; padding:14px 20px; border-radius:14px; border:0; background:var(--blue); color:#fff; cursor:pointer; transition:background .15s; }
+  button:hover:not(:disabled) { background:var(--blue-hover); }
+  button.weak { background:var(--blue-soft); color:var(--blue); }
+  button.weak:hover:not(:disabled) { background:#d8e9ff; }
+  button.plain { background:var(--soft); color:var(--sub); }
+  button.plain:hover:not(:disabled) { background:var(--line); }
+  button:disabled { opacity:.38; cursor:not-allowed; }
+
+  .own { margin-top:22px; padding-top:20px; border-top:1px solid var(--line); }
+  .own label { display:block; margin-bottom:8px; color:var(--sub); font-size:15px; font-weight:600; }
+  textarea { width:100%; font:14px/1.6 var(--mono); padding:14px 16px; border:1px solid var(--line); border-radius:14px; background:var(--softer); color:var(--ink); resize:vertical; outline:none; }
+  textarea:focus { border-color:var(--blue); background:#fff; }
+  .own .actions { margin-top:10px; }
+
+  .keys { margin:22px 0 0; padding:6px 20px; border-radius:16px; background:var(--softer); }
+  .keys div { display:grid; grid-template-columns:150px minmax(0,1fr); gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .keys div:last-child { border-bottom:0; }
+  .keys dt { color:var(--mute); font-size:14px; }
+  .keys dd { margin:0; font:13px/1.6 var(--mono); word-break:break-all; color:var(--ink); }
+  .keys dd .ok { font-family:inherit; color:var(--green); font-weight:600; font-family:"Pretendard Variable",Pretendard,system-ui,sans-serif; font-size:14px; }
+  .keys dd .bad { color:var(--red); font-weight:600; font-family:"Pretendard Variable",Pretendard,system-ui,sans-serif; font-size:14px; }
+
+  .log { margin-top:16px; padding:14px 16px; border-radius:14px; background:var(--softer); color:var(--sub); font:13px/1.6 var(--mono); white-space:pre-wrap; word-break:break-word; min-height:48px; }
+  .log.ok { background:var(--green-soft); color:#08754a; }
+  .log.bad { background:var(--red-soft); color:#c22d33; }
+
+  section.more { margin-top:88px; }
+  section.more h3 { margin:0 0 6px; font-size:26px; line-height:1.35; letter-spacing:-0.02em; font-weight:700; }
+  section.more .point { color:var(--sub); font-size:17px; margin-bottom:22px; }
+  section.more + section.more { margin-top:72px; }
+
+  .sig { display:flex; height:44px; gap:2px; }
+  .sig i { display:block; height:100%; }
+  .sig i:first-child { border-radius:10px 0 0 10px; }
+  .sig i:last-child { border-radius:0 10px 10px 0; }
+  .sig .e { flex:2; background:var(--blue); } .sig .f { flex:29; background:#333d4b; } .sig .s { flex:2; background:var(--amber); } .sig .h { flex:29; background:#d1d6db; }
+  .sig-legend { display:grid; grid-template-columns:repeat(4,auto); justify-content:start; gap:6px 22px; margin-top:12px; color:var(--sub); font-size:14px; }
+  .sig-legend span::before { content:""; display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:7px; background:var(--c); vertical-align:0; }
+  .lg-e { --c:var(--blue); } .lg-f { --c:#333d4b; } .lg-s { --c:var(--amber); } .lg-h { --c:#d1d6db; }
+
+  .checks { margin:24px 0 0; padding:0; list-style:none; display:grid; gap:10px; }
+  .checks li { display:flex; gap:12px; align-items:flex-start; padding:16px 18px; border-radius:16px; background:var(--softer); font-size:16px; color:var(--ink); }
+  .checks li b { flex:none; width:24px; height:24px; border-radius:50%; background:var(--blue-soft); color:var(--blue); font-size:13px; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+  .checks li span { color:var(--sub); }
+
+  .cost { display:grid; gap:8px; }
+  .cost div { display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:18px 20px; border-radius:16px; background:var(--softer); }
+  .cost div.me { background:var(--blue-soft); }
+  .cost span { color:var(--sub); font-size:16px; }
+  .cost b { font-size:20px; font-weight:700; letter-spacing:-0.01em; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .cost div.me b { color:var(--blue); }
+  .note { margin-top:12px; color:var(--mute); font-size:14px; }
+
+  .links { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .links a { display:block; padding:18px 20px; border-radius:16px; border:1px solid var(--line); color:var(--ink); }
+  .links a:hover { border-color:var(--blue); text-decoration:none; }
+  .links b { display:block; font-size:16px; }
+  .links span { display:block; margin-top:2px; color:var(--mute); font-size:14px; }
+
+  footer { margin-top:88px; padding-top:24px; border-top:1px solid var(--line); color:var(--mute); font-size:14px; line-height:1.7; }
+
+  @media (max-width:680px) {
+    body { font-size:16px; }
+    .top-in { padding:12px 16px; }
+    .top .pill.hide-s { display:none; }
+    .wrap { padding:40px 16px 80px; }
+    h1 { font-size:30px; }
+    .lead { font-size:17px; }
+    .stats { grid-template-columns:1fr; gap:8px; margin-top:28px; }
+    .stat { display:flex; align-items:baseline; gap:14px; padding:18px; }
+    .stat b { font-size:26px; min-width:84px; }
+    .stat span { margin-top:0; }
+    .card { padding:24px 18px; border-radius:20px; }
+    .card:first-of-type { margin-top:40px; }
+    h2 { font-size:20px; }
+    .actions button { flex:1 1 100%; }
+    .keys { padding:4px 14px; }
+    .keys div { grid-template-columns:1fr; gap:2px; }
+    section.more { margin-top:64px; }
+    section.more h3 { font-size:22px; }
+    .sig-legend { grid-template-columns:1fr 1fr; }
+    .cost div { flex-direction:column; gap:2px; }
+    .links { grid-template-columns:1fr; }
+  }
 </style>
 </head>
 <body>
-<header class="bar">
-  <span><b>starknet-pq-account</b> <span class="mute">/ demo</span></span>
-  <nav><span class="tag">Sepolia</span><span class="tag">Unaudited</span><a href="https://github.com/0xjuno/starknet-pq-account" target="_blank" rel="noopener">GitHub</a></nav>
-</header>
+<header class="top"><div class="top-in">
+  <a class="brand" href="https://github.com/0xjuno/starknet-pq-account" target="_blank" rel="noopener">
+    <svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="120" fill="#191f28"/><g transform="translate(256,256) scale(0.88) translate(-256,-256) translate(-6,-6)"><circle cx="220" cy="220" r="120" fill="none" stroke="#f2f4f6" stroke-width="32"/><g fill="#8b95a1"><circle cx="365" cy="305" r="16"/><circle cx="425" cy="305" r="16"/><circle cx="305" cy="365" r="16"/><circle cx="365" cy="365" r="16"/><circle cx="425" cy="365" r="16"/><circle cx="305" cy="425" r="16"/><circle cx="365" cy="425" r="16"/><circle cx="425" cy="425" r="16"/></g><circle cx="304.85" cy="304.85" r="30" fill="#191f28"/><circle cx="304.85" cy="304.85" r="22" fill="#3182f6"/></g></svg>
+    starknet-pq-account
+  </a>
+  <nav>
+    <span class="pill">Sepolia</span>
+    <span class="pill hide-s">Not audited</span>
+    <a href="https://github.com/0xjuno/starknet-pq-account" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</div></header>
 
 <main class="wrap">
-  <h1>PQ account signer</h1>
-  <p class="lead">This Sepolia account started as a plain OpenZeppelin account and was migrated in place. Every transaction now needs a STARK-curve ECDSA signature and a Falcon-512 signature. Both keys come from one 24-word mnemonic.</p>
-  <p class="lead small">Keys are derived in this tab and never leave it. The words are not saved.</p>
+  <p class="eyebrow">Testnet demo</p>
+  <h1>Add a post-quantum key to the Starknet account you already have</h1>
+  <p class="lead">One transaction upgrades an existing account in place. The address and the funds stay the same. From then on, every transaction needs an ECDSA signature and a Falcon-512 signature.</p>
+  <p class="lead">The account below started as a plain OpenZeppelin account on Sepolia. Keys are derived in this tab and never leave it.</p>
 
-  <div class="grid">
-    <div>
-      <section class="step"><span class="n">01</span><div>
-        <h2>Restore keys from the mnemonic</h2>
-        <textarea id="mnemonic" rows="3" placeholder="24 testnet words" autocomplete="off" spellcheck="false"></textarea>
-        <div class="row"><button id="derive">Derive keys and check the account</button><button id="demo" class="alt">Use the public demo account</button></div>
-        <p class="mute small">The demo account's words are public on purpose (Sepolia, topped up now and then). Don't paste a real wallet's words here or on any other page.</p>
-        <dl id="keys" hidden>
-          <dt>Account</dt><dd id="acct"></dd>
-          <dt>ECDSA public key</dt><dd id="ecpk"></dd>
-          <dt>Falcon key (first felt)</dt><dd id="fpk"></dd>
-          <dt>On-chain check</dt><dd id="check"></dd>
-          <dt>Verifier</dt><dd id="verifier"></dd>
-        </dl>
-      </div></section>
-
-      <section class="step"><span class="n">02</span><div>
-        <h2>Send 0.01 STRK</h2>
-        <p class="mute small">Signed in this tab with both keys. Then send the same transfer with ECDSA only, which the account should reject in __validate__.</p>
-        <div class="row">
-          <button id="send" disabled>Sign with ECDSA + Falcon and send</button>
-          <button id="attack" class="alt" disabled>Try ECDSA only (should be rejected)</button>
-        </div>
-        <div id="log" class="log">Waiting for keys.</div>
-      </div></section>
-
-      <section class="step"><span class="n">03</span><div>
-        <h2>Passkey <span class="mute">(optional)</span></h2>
-        <p class="mute small">Lock the restored keys with a passkey (Face ID, Windows Hello, security key) and unlock with it next time instead of typing the words. The seed is encrypted with the passkey's PRF output and kept in this browser. The words stay the backup.</p>
-        <div class="row">
-          <button id="pk-save" class="alt" disabled>Lock these keys with a passkey</button>
-          <button id="pk-unlock" class="alt" disabled>Unlock with passkey</button>
-          <button id="pk-forget" class="alt" hidden>Forget on this device</button>
-        </div>
-        <div id="pk-log" class="log">No passkey-locked keys on this device.</div>
-      </div></section>
-    </div>
-
-    <aside>
-      <div>
-        <h3>Signature, 62 felts</h3>
-        <div class="felts"></div>
-        <div class="legend">
-          <span class="lg-e">r, s: ECDSA (2)</span>
-          <span class="lg-s">s2 packed: Falcon-512 (29)</span>
-          <span class="lg-k">salt (2)</span>
-          <span class="lg-h">s2 &times; h hint (29)</span>
-        </div>
-      </div>
-      <div>
-        <h3>__validate__</h3>
-        <ul>
-          <li>ECDSA over the tx hash, against the stored STARK key</li>
-          <li>Falcon-512 over the same hash, by library call to the account's verifier class (SHAKE-256 Falcon-512: OpenZeppelin cairo-pq-verifiers, or the Provably Fast small verifier)</li>
-          <li>Both have to pass</li>
-        </ul>
-      </div>
-      <div>
-        <h3>Cost at mainnet prices</h3>
-        <table class="cost">
-          <tr><td>ECDSA transfer</td><td>~$0.002</td></tr>
-          <tr><td>Hybrid transfer</td><td>~$0.047</td></tr>
-          <tr><td>Migration, once</td><td>$0.06 to $0.13</td></tr>
-        </table>
-      </div>
-      <div>
-        <h3>More</h3>
-        <ul>
-          <li><a href="https://github.com/0xjuno/starknet-pq-account/blob/main/contracts/docs/wallet-coverage.md" target="_blank" rel="noopener">Wallet coverage, 11 classes</a></li>
-          <li><a href="https://github.com/0xjuno/starknet-pq-account" target="_blank" rel="noopener">Source and transaction list</a></li>
-        </ul>
-      </div>
-    </aside>
+  <div class="stats">
+    <div class="stat"><b>11</b><span>wallet classes moved in place on Sepolia, from Argent to Braavos</span></div>
+    <div class="stat"><b>90.7%</b><span>of the BTC delegated in Starknet staking sits in accounts that can move today</span></div>
+    <div class="stat"><b>-45%</b><span>gas per transfer with the Provably Fast verifier this account runs</span></div>
   </div>
 
-  <footer>MIT · built on OpenZeppelin cairo-pq-verifiers · testnet only, not audited</footer>
+  <section class="card">
+    <div class="card-h"><span class="num">1</span><h2>Restore both keys from one mnemonic</h2></div>
+    <p class="desc">The demo account's 24 words are public on purpose, so anyone can try it. It is topped up with Sepolia STRK now and then.</p>
+    <div class="actions"><button id="demo">Use the public demo account</button></div>
+
+    <dl id="keys" class="keys" hidden>
+      <div><dt>Account</dt><dd id="acct"></dd></div>
+      <div><dt>On-chain check</dt><dd id="check"></dd></div>
+      <div><dt>Verifier</dt><dd id="verifier"></dd></div>
+      <div><dt>ECDSA public key</dt><dd id="ecpk"></dd></div>
+      <div><dt>Falcon key, first felt</dt><dd id="fpk"></dd></div>
+    </dl>
+
+    <div class="own">
+      <label for="mnemonic">Or restore from your own testnet words</label>
+      <textarea id="mnemonic" rows="3" placeholder="24 Sepolia words" autocomplete="off" spellcheck="false"></textarea>
+      <div class="actions"><button id="derive" class="plain">Restore from these words</button></div>
+      <p class="warn">Never paste a real wallet's words here or on any other page.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><span class="num">2</span><h2>Send 0.01 STRK</h2></div>
+    <p class="desc">Signed in this tab with both keys. Then try the same transfer with ECDSA only, the way an attacker with a quantum computer would. The account should reject it.</p>
+    <div class="actions">
+      <button id="send" disabled>Sign with both keys and send</button>
+      <button id="attack" class="weak" disabled>Try ECDSA only</button>
+    </div>
+    <div id="log" class="log">Waiting for keys.</div>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><span class="num">3</span><h2>Lock the keys with a passkey</h2><span class="opt">Optional</span></div>
+    <p class="desc">Face ID, Windows Hello or a security key. The seed is encrypted with the passkey's PRF output and stays in this browser, so next time you unlock instead of typing the words. The words stay the backup.</p>
+    <div class="actions">
+      <button id="pk-save" class="weak" disabled>Lock with a passkey</button>
+      <button id="pk-unlock" class="weak" disabled>Unlock with passkey</button>
+      <button id="pk-forget" class="plain" hidden>Forget on this device</button>
+    </div>
+    <div id="pk-log" class="log">No passkey-locked keys on this device.</div>
+  </section>
+
+  <section class="more">
+    <h3>What the account checks</h3>
+    <p class="point">Every transaction carries 62 felts. Both halves are checked against the same transaction hash.</p>
+    <div class="sig"><i class="e"></i><i class="f"></i><i class="s"></i><i class="h"></i></div>
+    <div class="sig-legend">
+      <span class="lg-e">ECDSA r, s (2)</span>
+      <span class="lg-f">Falcon-512 s2 (29)</span>
+      <span class="lg-s">Salt (2)</span>
+      <span class="lg-h">s2 × h hint (29)</span>
+    </div>
+    <ul class="checks">
+      <li><b>1</b><div>ECDSA over the transaction hash<br><span>against the account's stored STARK key</span></div></li>
+      <li><b>2</b><div>Falcon-512 over the same hash<br><span>by library call to the account's verifier class: OpenZeppelin cairo-pq-verifiers, or the Provably Fast small verifier</span></div></li>
+      <li><b>3</b><div>Both have to pass<br><span>a valid ECDSA signature alone is rejected in __validate__</span></div></li>
+    </ul>
+  </section>
+
+  <section class="more">
+    <h3>What it costs on mainnet</h3>
+    <p class="point">Sepolia receipts, priced at mainnet block 17043179 (October 27, 2026, STRK at $0.0465).</p>
+    <div class="cost">
+      <div><span>ECDSA transfer, today</span><b>about $0.001</b></div>
+      <div class="me"><span>Hybrid transfer, small verifier (this account)</span><b>about $0.026</b></div>
+      <div><span>Hybrid transfer, OpenZeppelin verifier</span><b>about $0.047</b></div>
+      <div><span>Moving an account, once</span><b>$0.04 to $0.13</b></div>
+    </div>
+  </section>
+
+  <section class="more">
+    <h3>Read more</h3>
+    <div class="links">
+      <a href="https://github.com/0xjuno/starknet-pq-account" target="_blank" rel="noopener"><b>Source and transactions</b><span>github.com/0xjuno/starknet-pq-account</span></a>
+      <a href="https://github.com/0xjuno/starknet-pq-account/blob/main/contracts/docs/wallet-coverage.md" target="_blank" rel="noopener"><b>Wallet coverage</b><span>Eleven wallet classes, with transactions</span></a>
+      <a href="https://github.com/0xjuno/starknet-pq-account/releases/tag/testnet-v1" target="_blank" rel="noopener"><b>Release testnet-v1</b><span>What is in it and what is not yet</span></a>
+      <a href="https://community.starknet.io/t/116448" target="_blank" rel="noopener"><b>Forum thread</b><span>community.starknet.io</span></a>
+    </div>
+  </section>
+
+  <footer>MIT license. Built on OpenZeppelin cairo-pq-verifiers. The Provably Fast small verifier integration is by Ryan Williams. Testnet only, not audited.</footer>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/starknet@10.8.0/dist/index.global.min.js"></script>
