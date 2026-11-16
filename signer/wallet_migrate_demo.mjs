@@ -164,9 +164,13 @@ async function run(name, deployerAcc) {
     s.inspectBefore = info; save();
     log(`  inspect: ${info.kind} ${info.version || ""} migratable=${info.migratable} needs=[${info.needs}] ${info.reason}`);
     if (!info.migratable) return;
-    // Fee bound for the migration (MIGRATION_L2_MAX at 1.5x the current price) must fit the balance.
+    // The migration's fee bound (MIGRATION_L2_MAX at the price bounds() sets) must fit the balance
+    // whatever the L2 gas price is today, or validation fails with "exceed balance": top the
+    // account up to that bound plus 1 STRK, not to a fixed amount.
+    const b = await bounds(MIGRATION_L2_MAX);
+    const need = b.l2_gas.max_amount * b.l2_gas.max_price_per_unit + b.l1_data_gas.max_amount * b.l1_data_gas.max_price_per_unit + 10n ** 18n;
     const balance = await strkBalance(s.address);
-    if (balance < 9n * 10n ** 18n) await send(deployerAcc, transferCall(s.address, 9n * 10n ** 18n - balance), 3000000n);
+    if (balance < need) await send(deployerAcc, transferCall(s.address, need - balance), 3000000n);
     s.before = { class: info.classHash, balance: (await strkBalance(s.address)).toString(), verifierClass: SHAKE_VERIFIER }; save();
     const calls = migrationCalls(info, k, { migratableClass: state.migratableClass, verifierClass: SHAKE_VERIFIER });
     try {

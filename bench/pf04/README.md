@@ -98,9 +98,14 @@ differs slightly from the size of the file Scarb writes.
 | `HybridShakeVerifierPfRecord` | 77,902 | 76,146 | 3,422,453 | 2,329,159 | 6,310,728,960 | 108.8% |
 | `HybridShakeVerifierPfSmall` | 64,163 | 68,569 | 3,350,894 | 1,741,663 | 5,437,624,320 | 93.8% |
 | `HybridShakeVerifierPfSmallKeyRead` | 63,912 | 68,420 | 3,341,785 | 1,735,081 | 5,421,249,280 | 93.5% |
-| `HybridMigratableAccount` | 7,719 | 3,546 | 181,970 | 177,227 | 468,300,800 | 8.1% |
+| `HybridMigratableAccount` | 8,866 | 4,124 | 215,322 | 203,538 | 539,115,520 | 9.3% |
 | `HybridPoseidonAccount` | 49,043 | 51,261 | 1,900,820 | 1,331,138 | 4,112,410,880 | 70.9% |
 | `VerifierSwitchGuard` | 1,164 | 978 | 36,318 | 27,626 | 88,408,320 | 1.5% |
+
+The `HybridMigratableAccount` row is the 2026-11-16 class (key-rotation proofs, and the state
+check after a verifier switch), measured by this check in CI (ubuntu, same toolchain) on
+2026-11-16; its budgets were raised to those figures plus 1% in the same change. The other rows
+are the 2026-10-29 run recorded in `results.json`; those classes did not change.
 
 ### Declare size: the limit the board does not check
 

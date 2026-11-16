@@ -419,11 +419,11 @@
       "compiled_class_object_bytes": 1735081
     },
     "HybridMigratableAccount": {
-      "casm_bytecode_felts": 7719,
-      "sierra_program_felts": 3546,
-      "declare_code_l2_gas": 468300800,
-      "contract_class_object_bytes": 181970,
-      "compiled_class_object_bytes": 177227
+      "casm_bytecode_felts": 8866,
+      "sierra_program_felts": 4124,
+      "declare_code_l2_gas": 539115520,
+      "contract_class_object_bytes": 215322,
+      "compiled_class_object_bytes": 203538
     },
     "HybridPoseidonAccount": {
       "casm_bytecode_felts": 49043,
@@ -504,11 +504,11 @@
     "size.HybridShakeVerifierPfSmallKeyRead.declare_code_l2_gas": 5421249280,
     "size.HybridShakeVerifierPfSmallKeyRead.contract_class_object_bytes": 3341785,
     "size.HybridShakeVerifierPfSmallKeyRead.compiled_class_object_bytes": 1735081,
-    "size.HybridMigratableAccount.casm_bytecode_felts": 7719,
-    "size.HybridMigratableAccount.sierra_program_felts": 3546,
-    "size.HybridMigratableAccount.declare_code_l2_gas": 468300800,
-    "size.HybridMigratableAccount.contract_class_object_bytes": 181970,
-    "size.HybridMigratableAccount.compiled_class_object_bytes": 177227,
+    "size.HybridMigratableAccount.casm_bytecode_felts": 8866,
+    "size.HybridMigratableAccount.sierra_program_felts": 4124,
+    "size.HybridMigratableAccount.declare_code_l2_gas": 539115520,
+    "size.HybridMigratableAccount.contract_class_object_bytes": 215322,
+    "size.HybridMigratableAccount.compiled_class_object_bytes": 203538,
     "size.HybridPoseidonAccount.casm_bytecode_felts": 49043,
     "size.HybridPoseidonAccount.sierra_program_felts": 51261,
     "size.HybridPoseidonAccount.declare_code_l2_gas": 4112410880,
