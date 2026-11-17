@@ -63,7 +63,7 @@ code. Sent by an OpenZeppelin account of class `0x05b4b537…` (Sierra 1.6.0), t
 - **Checks inside `__validate__` are bounded.** Validation may use at most 10^8 Sierra gas
   (`validate_max_sierra_gas`). One check against an account on the OpenZeppelin verifier takes
   half of it, so an account or paymaster that validates two such signatures in `__validate__`
-  hits the limit; with the small verifier, three fit. Carlos Castillo raised this on the forum
+  hits the limit; with the small verifier, three fit. Carlos ([Zealynx](https://zealynx.io)) raised this on the forum
   ([/t/116470](https://community.starknet.io/t/116470)); the measurement confirms it for the
   OpenZeppelin verifier.
 - **Checks in `__execute__` scale linearly** and are paid by whoever sends the transaction: a

@@ -361,7 +361,7 @@ node consumer_sepolia.mjs       # what a contract pays to check a migrated accou
   the release manifest and its checks, and the reproducible page build (`scripts/`). His commits
   are merged here as he wrote them. The small verifier uses the `fj_dee1326c` patch from the
   StarkWare and Starknet Foundation Falcon optimization challenge.
-- Carlos Castillo ([Zealynx](https://zealynx.io)) reviewed the migratable account at `1345ece` and
+- Carlos ([Zealynx](https://zealynx.io)) reviewed the migratable account at `1345ece` and
   found the two gaps fixed in `5a1269f`: key rotations without a possession proof, and verifier
   switches without a validity check ([forum thread](https://community.starknet.io/t/116448)).
 - Built on [OpenZeppelin cairo-pq-verifiers](https://github.com/OpenZeppelin/cairo-pq-verifiers)
