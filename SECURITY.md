@@ -18,7 +18,7 @@ you ask otherwise. There is no bounty: nothing here is deployed on mainnet.
 
 | Date | Who | Scope | Result |
 | --- | --- | --- | --- |
-| 2026-10-27 | Carlos Castillo ([Zealynx](https://zealynx.io)), [forum](https://community.starknet.io/t/116448/2) | `HybridMigratableAccount` at `1345ece` | Two findings: key rotation without a possession proof, verifier switch without a validity check. Both fixed in `5a1269f`, retested on Sepolia. |
+| 2026-10-27 | Carlos ([Zealynx](https://zealynx.io)), [forum](https://community.starknet.io/t/116448/2) | `HybridMigratableAccount` at `1345ece` | Two findings: key rotation without a possession proof, verifier switch without a validity check. Both fixed in `5a1269f`, retested on Sepolia. |
 | 2026-11-16 | maintainer, while merging the `testnet-v1` work | `set_verifier_class_hash` with the guard tests | A candidate verifier runs in the account's storage, so it could rewrite a key or the pointer while passing the signature check. The switch now re-reads both keys and the pointer (`4832ddd`). |
 
 ## Scope proposed for an independent review
