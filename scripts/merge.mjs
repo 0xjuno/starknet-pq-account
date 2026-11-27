@@ -25,7 +25,7 @@ export const CI_EVENT = 'pull_request'
 export const GUARDRAIL_PATHS = [
   /^\.github\//,
   /^\.githooks\//,
-  /^\.gitleaks\.toml$/,
+  /^\.gitleaks(?:\.toml|ignore)$/,
   /^rules\//,
   /^scripts\/(?:check|check_rules|cairo_tests|merge|install-hooks|release_manifest|build_page)\.mjs$/,
   /^vendor\/provably-fast\/falcon-512\/(?:make_crates\.sh|SHA256SUMS)$/,
@@ -91,9 +91,9 @@ function selfTest() {
     if (got !== want) fail++
     console.log(`${got === want ? 'ok  ' : 'FAIL'} checks: ${what} (refusals ${got}, want ${want})`)
   }
-  const files = ['README.md', '.github/workflows/ci.yml', 'rules/rules.md', 'scripts/check_rules.mjs', 'bench/pf04/budgets.json', 'contracts/src/lib.cairo', 'scripts/check.mjs', '.gitleaks.toml', 'signer/demo.mjs', 'vendor/provably-fast/falcon-512/make_crates.sh']
+  const files = ['README.md', '.github/workflows/ci.yml', 'rules/rules.md', 'scripts/check_rules.mjs', 'bench/pf04/budgets.json', 'contracts/src/lib.cairo', 'scripts/check.mjs', '.gitleaks.toml', '.gitleaksignore', 'signer/demo.mjs', 'vendor/provably-fast/falcon-512/make_crates.sh']
   const hits = guardrailHits(files)
-  const want = ['.github/workflows/ci.yml', 'rules/rules.md', 'scripts/check_rules.mjs', 'bench/pf04/budgets.json', 'scripts/check.mjs', '.gitleaks.toml', 'vendor/provably-fast/falcon-512/make_crates.sh']
+  const want = ['.github/workflows/ci.yml', 'rules/rules.md', 'scripts/check_rules.mjs', 'bench/pf04/budgets.json', 'scripts/check.mjs', '.gitleaks.toml', '.gitleaksignore', 'vendor/provably-fast/falcon-512/make_crates.sh']
   const g = JSON.stringify(hits) === JSON.stringify(want)
   if (!g) fail++
   console.log(`${g ? 'ok  ' : 'FAIL'} guardrail paths: ${hits.length} of ${files.length} files flagged (want ${want.length})`)

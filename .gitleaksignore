@@ -1,0 +1,15 @@
+# Reviewed gitleaks findings, one fingerprint each: file:rule:line for the tree (gitleaks dir) and
+# commit:file:rule:line for history (gitleaks git). gitleaks reads this file from the folder it
+# runs in. Reviewed 2026-11-27; all three are public test material, not keys of anything.
+# A fingerprint names one line: if the line moves, the finding comes back and needs a new review.
+#
+# PF-04 benchmark ECDSA key, public on purpose ("intentionally public: benchmark fixtures only,
+# never fund it anywhere", header of bench/pf04/gen_fixtures.mjs), and the same key in its output.
+bench/pf04/gen_fixtures.mjs:generic-api-key:14
+bench/pf04/fixtures.json:generic-api-key:3
+4f07f355a0b2a1c771b5164285b0bae3a264228e:bench/pf04/gen_fixtures.mjs:generic-api-key:14
+4f07f355a0b2a1c771b5164285b0bae3a264228e:bench/pf04/fixtures.json:generic-api-key:3
+# Argent X key-derivation test vector, published in Argent X's own tests (header of
+# signer/wallet_profiles_check.mjs).
+signer/wallet_profiles_check.mjs:generic-api-key:15
+f7bce1e34942bcf4443527e7898aabb518a24166:signer/wallet_profiles_check.mjs:generic-api-key:15

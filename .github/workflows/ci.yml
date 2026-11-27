@@ -88,8 +88,8 @@ jobs:
 
   # Secrets, two layers with one gitleaks binary pinned by version and checksum (the release's
   # gitleaks_8.30.1_checksums.txt, linux_x64): (1) the commits this run adds, (2) the whole tree
-  # that results, which also covers content that only appears in a merge commit. Rules and the
-  # reviewed public test vectors: .gitleaks.toml.
+  # that results, which also covers content that only appears in a merge commit. Rules:
+  # .gitleaks.toml; reviewed public test vectors, one fingerprint each: .gitleaksignore.
   secrets:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

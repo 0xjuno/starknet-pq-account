@@ -18,7 +18,9 @@ build`) and `npm install` in `signer/`. Each check prints its own result and the
 summary; nothing stops at the first failure. Node 24, no packages to install.
 
 Secrets: CI runs gitleaks 8.30.1 with `.gitleaks.toml`, on the commits a run adds and on the whole
-tree. Locally:
+tree. A finding reviewed as harmless (a published test vector) goes into `.gitleaksignore` as its
+fingerprint, one line each, with the reason; gitleaks reads that file from the folder it runs in.
+Locally, from the repository root:
 
 ```
 gitleaks git . --redact -c .gitleaks.toml --log-opts="origin/main..HEAD"
