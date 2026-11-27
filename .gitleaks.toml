@@ -1,0 +1,29 @@
+# gitleaks configuration, used by the CI secrets job and by local runs. All default rules, plus
+# the allowlists below. Paths are anchored at the repository root (^), so an allowlist cannot be
+# reached by putting the same folder name somewhere else in a path.
+title = "starknet-pq-account"
+
+[extend]
+useDefault = true
+
+# Code vendored from other projects (vendor/*/LICENSE, NOTICE.md). No finding there on 2026-11-27;
+# listed so an upstream test key never blocks an update of the vendored copy.
+[[allowlists]]
+description = "vendored third-party code"
+paths = ['''^vendor/''']
+
+# Reviewed findings, 2026-11-27. Each entry needs the file AND the line, so a new value anywhere
+# else in these files is still reported.
+[[allowlists]]
+description = "PF-04 benchmark ECDSA key, public on purpose (see the header of bench/pf04/gen_fixtures.mjs)"
+condition = "AND"
+paths = ['''^bench/pf04/(?:gen_fixtures\.mjs|fixtures\.json)$''']
+regexTarget = "line"
+regexes = ['''const PUBLIC_TEST_PRIVATE_KEY = "''', '''"ecdsa_private_key_PUBLIC_TEST_ONLY": "''']
+
+[[allowlists]]
+description = "Argent X key-derivation test vector, published in Argent X's own tests (see the header of signer/wallet_profiles_check.mjs)"
+condition = "AND"
+paths = ['''^signer/wallet_profiles_check\.mjs$''']
+regexTarget = "line"
+regexes = ['''const SECRET = "0x[0-9a-f]{64}";''']
