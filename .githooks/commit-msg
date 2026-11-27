@@ -1,0 +1,4 @@
+#!/bin/sh
+# Rule S3 (rules/rules.md): commit messages in this repository carry no Co-Authored-By lines.
+# CI checks the same on every pull request (lint job). Skip once with: git commit --no-verify
+exec node "$(git rev-parse --show-toplevel)/scripts/check_rules.mjs" --commit-msg "$1"
