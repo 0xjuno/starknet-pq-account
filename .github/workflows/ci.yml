@@ -1,3 +1,6 @@
+# Job names here are the required checks in scripts/merge.mjs (REQUIRED_CHECKS) and in the branch
+# protection rule: contracts, falcon-differential, pf04-budgets, recovery, secrets, lint.
+# The same checks locally: CONTRIBUTING.md.
 name: tests
 
 on:
@@ -31,6 +34,10 @@ jobs:
         run: node scripts/release_manifest.mjs --check
       - name: docs/index.html is built from its template
         run: node scripts/build_page.mjs --check
+      # Exact count (==), last summary block only. Runs the tests again on the cached build: a
+      # deleted or ignored test fails here even when the rest passes.
+      - name: Test count is exact (scripts/cairo_tests.mjs)
+        run: node scripts/cairo_tests.mjs contracts
 
   falcon-differential:
     runs-on: ubuntu-24.04
@@ -73,3 +80,61 @@ jobs:
       - name: Execute (Braavos profile, public test mnemonic)
         working-directory: recovery
         run: scarb execute --arguments-file args/braavos.json --print-program-output --print-resource-usage --target bootloader --output none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Test count is exact (scripts/cairo_tests.mjs)
+        run: node scripts/cairo_tests.mjs recovery
+
+  # Secrets, two layers with one gitleaks binary pinned by version and checksum (the release's
+  # gitleaks_8.30.1_checksums.txt, linux_x64): (1) the commits this run adds, (2) the whole tree
+  # that results, which also covers content that only appears in a merge commit. Rules:
+  # .gitleaks.toml; reviewed public test vectors, one fingerprint each: .gitleaksignore.
+  secrets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Get gitleaks (checksum pinned)
+        run: |
+          curl -sSfL -o /tmp/gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          /tmp/gitleaks version
+      - name: gitleaks git (commits this run adds)
+        env:
+          RANGE: ${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || format('{0}..{1}', github.event.before, github.sha) }}
+        run: |
+          # A new ref has no "before": scan everything reachable from the pushed commit
+          case "$RANGE" in 0000000000000000000000000000000000000000..*) RANGE="${RANGE#*..}" ;; esac
+          /tmp/gitleaks git . --no-banner --redact -c .gitleaks.toml --log-opts="$RANGE"
+      - name: gitleaks dir (resulting tree)
+        run: /tmp/gitleaks dir . --no-banner --redact -c .gitleaks.toml
+
+  # Rules for every change, with nothing to install (scripts/check.mjs, rules/rules.md): the rules
+  # checker's self-test first, then the rules on the tracked files and on the messages of the
+  # commits this run adds (S3), the merge and test-count judges' self-tests, the docs page and
+  # candidate-crate --check scripts.
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Checks (scripts/check.mjs)
+        env:
+          RANGE: ${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || format('{0}..{1}', github.event.before, github.sha) }}
+        run: node scripts/check.mjs --commits "$RANGE"

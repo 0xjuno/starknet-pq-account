@@ -1,0 +1,15 @@
+#!/bin/sh
+# Runs before each commit once hooks are on (node scripts/install-hooks.mjs). The fast part of
+# what CI's lint job runs, then gitleaks on the staged changes when gitleaks is installed
+# (GITLEAKS=<path> points at a binary that is not on PATH). Both run; either one failing stops
+# the commit. CI runs everything again. Skip once with: git commit --no-verify
+cd "$(git rev-parse --show-toplevel)" || exit 1
+status=0
+node scripts/check.mjs --fast || status=1
+GL="${GITLEAKS:-gitleaks}"
+if command -v "$GL" >/dev/null 2>&1; then
+  "$GL" git --staged --no-banner --redact -c .gitleaks.toml . || status=1
+else
+  echo "pre-commit: gitleaks not found, staged changes not scanned for secrets (CI secrets job still runs)"
+fi
+exit $status

@@ -1,0 +1,18 @@
+# gitleaks configuration, used by the CI secrets job and by local runs. All default rules, plus
+# the allowlist below. Paths are anchored at the repository root (^), so the allowlist cannot be
+# reached by putting the same folder name somewhere else in a path.
+#
+# Reviewed findings in our own files are listed one by one, by fingerprint, in .gitleaksignore.
+# Not here: in `gitleaks dir`, a path + regex allowlist clears every finding in a file once the
+# file contains the allowed text (2026-11-27, a new secret one line below an allowed one was not
+# reported), while `gitleaks git` reported it. A fingerprint names one line in both modes.
+title = "starknet-pq-account"
+
+[extend]
+useDefault = true
+
+# Code vendored from other projects (vendor/*/LICENSE, NOTICE.md). No finding there on 2026-11-27;
+# listed so an upstream test key never blocks an update of the vendored copy.
+[[allowlists]]
+description = "vendored third-party code"
+paths = ['''^vendor/''']

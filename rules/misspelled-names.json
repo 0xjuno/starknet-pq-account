@@ -1,0 +1,8 @@
+[
+  {
+    "wrong": "Castillo",
+    "use": "Carlos (Zealynx)",
+    "reason": "The Zealynx reviewer posts from the company account \"Carlos | Zealynx\"; the surname belonged to another forum user. It stood in README.md and SECURITY.md from 2026-10-27 until PR #4 (commit 052e533) fixed it by hand.",
+    "date": "2026-11-17"
+  }
+]
